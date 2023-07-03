@@ -1,0 +1,13 @@
+SVILUPPO:
+  BUILD:
+    # Nome del job che verrà utilizzato su jenkins
+    mylib:
+      # nome del repository nexus creato. Da non cambiare se si tratta di librerie common
+      REPO_TO_PUBLISH: "python-common-library"
+
+RELEASE:
+  BUILD:
+    # Nome del job che verrà utilizzato su jenkins
+    mylib:
+      # # nome del repository nexus creato. Da non cambiare se si tratta di librerie common
+      REPO_TO_PUBLISH: "python-common-library"

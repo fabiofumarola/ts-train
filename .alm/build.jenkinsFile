@@ -1,0 +1,6 @@
+@Library('jenkins-lib-utility')
+@Library('jenkins-pipeline-sviluppo')
+def envTarget = "SVILUPPO"
+// Replace <GIT_URL_REPO> the suffix of repo url (with .git) of your repository 
+def APP_GIT_URL = "https://gitlab.alm.poste.it/AILAB/ts-train.git"
+svilPythonLIbrary(APP_GIT_URL, envTarget, "develop")
