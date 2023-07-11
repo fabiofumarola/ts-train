@@ -1,0 +1,4 @@
+Come generare features di aggregazione numeric/categor e temporale su 3/6 mesi:
+1) lanci N volte la pipeline di bucketing/generazione/filling/tsfresh e poi aggreghi
+
+Pipeline esplicita

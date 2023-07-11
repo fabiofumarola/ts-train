@@ -1,0 +1,3 @@
+*.pyc
+src/ts_train/__pycache__/__init__.cpython-311.pyc
+.coverage
