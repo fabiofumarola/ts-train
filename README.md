@@ -1,84 +1,67 @@
-# Descrizione repository
+# How run the repository
 
-Per la corretta gestione della Software Development LifeCycle e per permettere l’utilizzo dell’automazione, il repository di tipo Python deve presentare la seguente struttura nel branch develop:
+## Environment
+Create a new conda environment with the following command:
+```sh
+conda create --name env_name python=3.10
+conda activate env_name
+```
+```
+Then install the poetry package inside the environment with:
+```sh
+pip install poetry
+```
+and then install all the requirements with:
+```sh
+poetry install
+```
 
-* *pipeline.yaml*: contiene puntamenti ai repository Nexus; non deve essere modificato se si tratta di common library, mentre se si tratta di una project library andrà inserito il nome del repository Nexus di progetto <br/><br/>
-* *cartella .alm*: contiene il file build.jenkinsFile utilizzato per l'implementazione della CI/CD in ambiente di sviluppo <br/><br/>
-* *pyproject.toml*: deve essere personalizzato dal team di sviluppo con i dati che riguardano la libreria che si sta sviluppando <br/><br/>
-
-# Step per buildare la libreria python in sviluppo
-
-### 1. Applicare una branching strategy
-
-La gestione della strategia di “branch” (e di conseguenza di “merge”) è sicuramente uno degli elementi più delicati dello sviluppo del software. Per questo motivo, una volta definita, la strategia di branch deve essere seguita in maniera precisa e senza eccezioni, sia per permettere una lettura “storica” del software sia perché questa abilita l’automazione di alcune steps tramite Jenkins.
-
-Al seguente [link](https://gitlab.alm.poste.it/guidelines/linee-guida-alm/-/blob/master/branching/branching-strategy.md) è possibile consultare la guida alla Branching Strategy proposta in Poste Italiane.
-
-E' possibile naturalmente definirne una diversa che deve essere documentata nel repository, in modo da poterla consultare anche successivamente.
-
-### 2. Personalizzare i file di configurazione
-
-Come descritto nelle [linee guida](https://gitlab.alm.poste.it/guidelines/linee-guida-alm/-/blob/master/jenkins/svil-python-common.md), prima di proseguire con la definizione del job su jenkins e la relativa esecuzione, andranno personalizzati il file "pyproject.toml" inserendo i dati relativi alla libreria che si sta sviluppando ed, eventualmente, il file build.jenkinsFile se si vuole eseguire la build partendo da un branch diverso da develop.
-
-### 3. Verificare i prerequisti per poter utilizzare Jenkins in ambiente di sviluppo
-
-Per poter procedere con il processo automatico di build e deploy, occorre verificare che i seguenti [prerequisiti](https://gitlab.alm.poste.it/guidelines/linee-guida-alm/-/blob/master/jenkins/prerequisiti.md) siano soddisfatti.
-
-### 4. Creare il job di build su Jenkins
-
-Al seguente [link](https://gitlab.alm.poste.it/guidelines/linee-guida-alm/-/blob/master/jenkins/svil-python-common.md) è possibile consultare il manuale operativo per la creazione del job jenkins che esegue la build della libreria.
-
-### 5. Eseguire i job su jenkins
-
-In base al [jenkins di sviluppo](https://gitlab.alm.poste.it/guidelines/linee-guida-alm/-/blob/master/jenkins/prerequisiti.md#accesso-jenkins-disponibili-in-ambiente-di-sviluppo-tramite-vpn) usato, collegarsi alla console ed eseguire il job di build.
-
-# Utilizzo libreria buildata in ambiente di sviluppo
-
-Per utilizzare queste librerie nei propri progetti pyhton, è sufficiente aggiungere nel requirement.txt (utilizzato da pip) le seguenti righe:
-
-- In caso di commoon library:
-
---extra-index-url https://nexus.alm.poste.it/repository/python-common-library-snapshot/simple <br>
-< my package X >==< my package version X > <br>
-< my package Y >==< my package version Y > <br>
-dove "my package X" è il nome del whl creato e "my package version X" è la versione da usare.
+Now you can run the repository with:
+```sh
+python src/ts_train/main.py
+```
+---
 
 
-- in caso di project library
+## Pre-commit
 
---extra-index-url https://nexus.alm.poste.it/repository/< PROJECT REPO NAME >-snapshot/simple <br>
-< my package X >==< my package version X > <br>
-< my package Y >==< my package version Y > <br>
-dove "my package X" è il nome del whl creato e "my package version X" è la versione da usare.
+Pre-commit hooks run all the auto-formatters (`black`), type checker (`mypy`), and a linter (`ruff`). These tools are used to be sure that the changeset is in good shape before a commit/push happens.
 
-# Creazione release della libreria
+You can install the hooks with (runs for each commit):
 
-Per poter poi creare la versione "release" della libreria deve essere creato il job (secondo quanto riportato nella seguente [guida](https://gitlab.alm.poste.it/guidelines/linee-guida-alm/-/blob/master/jenkins/release-python-project.md)) e richiesto successivamente l'export tramite [ticket](https://gitlab.alm.poste.it/guidelines/linee-guida-alm/-/blob/master/guida-sviluppo/ticket_promozione_pipeline.md).
+```sh
+pre-commit install
+```
 
-# Utilizzo libreria buildata in ambiente di release
+Or if you want them to run only for each push:
 
-Per utilizzare queste librerie nei propri progetti pyhton, è sufficiente aggiungere nel requirement.txt (utilizzato da pip) le seguenti righe:
+```sh
+pre-commit install -t pre-push
+```
 
-- In caso di common library:
+Or if you want e.g. want to run all checks manually for all files:
 
---extra-index-url https://nexus.alm.poste.it/repository/python-common-library/simple <br>
-< my package X >==< my package version X > <br>
-< my package Y >==< my package version Y > <br>
-dove "my package X" è il nome del whl creato e "my package version X" è la versione da usare.
+```sh
+pre-commit run --all-files
+```
 
+---
+## Makefile commands
+The Makefile is a file used in software development projects to automate various tasks and streamline the build process. To use the Makefile, simply run the make command followed by the name of the target or rule specified in the Makefile.
 
-- in caso di project library
+In our new repository, we have included a special command in the Makefile called `check` that allows you to run all the steps of the CI/CD pipeline offline. This command is designed to save time by executing the necessary tasks locally before pushing the code. By running make `check`, you can perform all the necessary checks without triggering the entire CI/CD pipeline.
 
---extra-index-url https://nexus.alm.poste.it/repository/< PROJECT REPO NAME >/simple <br>
-< my package X >==< my package version X >  <br>
-< my package Y >==< my package version Y > <br>
-dove "my package X" è il nome del whl creato e "my package version X" è la versione da usare.
+You can using before every push by calling:
+```sh
+make check
+```
 
-# Link utili
+### Dockerfile
+There are two commands into the Makefile thats help with dockerfile interaction:
+```sh
+make docker_build: this command generate the requirements.txt and then build the dockerfile
+```
 
-* [Troubleshooting](https://gitlab.alm.poste.it/guidelines/linee-guida-alm/-/blob/master/jenkins/troubleshooting.md)
-* [Guida all'apertura dei ticket](https://gitlab.alm.poste.it/guidelines/linee-guida-alm/-/blob/master/guida-sviluppo/Apertura_Ticket_ALM.md)
-* [Template Manuale di installazione](https://gitlab.alm.poste.it/guidelines/linee-guida-alm/-/blob/master/guida-sviluppo/linee_guida_manuale_installazione.md)
-* [Template Release Notes](https://gitlab.alm.poste.it/guidelines/linee-guida-alm/-/blob/master/guida-sviluppo/template_release_notes.md)
-
-
+```sh
+make explore_docker: this command allow you to run the docker container with interaction mode
+```

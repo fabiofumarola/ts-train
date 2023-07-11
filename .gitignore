@@ -1,6 +1,10 @@
 # Created by https://www.toptal.com/developers/gitignore/api/node,java,dotnetcore,python,go,goland+all,visualstudiocode,visualstudio,eclipse,androidstudio,android,executable,ruby,helm,libreoffice,microsoftoffice,database,data,images
 # Edit at https://www.toptal.com/developers/gitignore?templates=node,java,dotnetcore,python,go,goland+all,visualstudiocode,visualstudio,eclipse,androidstudio,android,executable,ruby,helm,libreoffice,microsoftoffice,database,data,images
 
+*.pyc
+src/ts_train/__pycache__/__init__.cpython-311.pyc
+.coverage
+
 ### Android ###
 # Gradle files
 .gradle/
@@ -987,6 +991,8 @@ coverage*.info
 # Visual Studio code coverage results
 *.coverage
 *.coveragexml
+
+
 
 # NCrunch
 _NCrunch_*
