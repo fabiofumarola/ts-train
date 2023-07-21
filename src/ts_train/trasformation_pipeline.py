@@ -14,5 +14,6 @@ class TrasformationPipeline:
         pass
 
     def process(self, df: DataFrame, spark_session: SparkSession) -> DataFrame:
-        # ciclo sulla lista di step, li esegue e passo ogni ottenuto allo step successivo
+        # ciclo sulla lista di step, li esegue e passo ogni ottenuto allo step
+        # successivo
         raise NotImplementedError

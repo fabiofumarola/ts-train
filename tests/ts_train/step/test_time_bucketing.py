@@ -1,86 +1,33 @@
-from pyspark.sql import SparkSession
-from pyspark.sql.types import (
-    StructType,
-    StructField,
-    IntegerType,
-    StringType,
-    BooleanType,
-)
-import pyspark.sql.functions as F
 import pytest
 from pydantic import ValidationError
+from pyspark.sql import functions as F
+from pyspark.sql.types import BooleanType
 
-from ts_train.step.time_bucketing import TimeBucketing
-
-
-@pytest.fixture(scope="session")
-def spark():
-    return SparkSession.builder.getOrCreate()
+from ts_train.step.time_bucketing import TimeBucketing  # type: ignore
+from ts_train.common.utils import is_column_window  # type: ignore
 
 
-@pytest.fixture
-def sample_dataframe_01(spark):
-    df = spark.createDataFrame(
-        [
-            (348272371, "2023-01-01", 5.50, "shopping", "true"),
-            (348272371, "2023-01-01", 6.10, "salute", "false"),
-            (348272371, "2023-01-01", 8.20, "trasporti", "false"),
-            (348272371, "2023-01-01", 1.50, "trasporti", "true"),
-            (348272371, "2023-01-06", 20.20, "shopping", "false"),
-            (348272371, "2023-01-06", 43.00, "shopping", "true"),
-            (348272371, "2023-01-06", 72.20, "shopping", "false"),
-            (234984832, "2023-01-01", 15.34, "salute", "true"),
-            (234984832, "2023-01-01", 36.22, "salute", "true"),
-            (234984832, "2023-01-01", 78.35, "salute", "false"),
-            (234984832, "2023-01-02", 2.20, "trasporti", "true"),
-        ],
-        schema=[
-            "ID_BIC_CLIENTE",
-            "DATA_TRANSAZIONE",
-            "IMPORTO",
-            "CA_CATEGORY_LIV0",
-            "IS_CARTA",
-        ],
-    )
-
-    df = df.withColumn(
-        "DATA_TRANSAZIONE", F.to_timestamp(F.col("DATA_TRANSAZIONE"), "yyyy-MM-dd")
-    )
-
-    return df
+# TESTING INIT METHOD
 
 
-@pytest.fixture
-def sample_dataframe_empty(spark):
-    schema = StructType(
-        [
-            StructField("ID_BIC_CLIENTE", IntegerType(), False),
-            StructField("DATA_TRANSAZIONE", StringType(), False),
-            StructField("IMPORTO", IntegerType(), False),
-            StructField("CA_CATEGORY_LIV0", StringType(), False),
-            StructField("IS_CARTA", BooleanType(), False),
-        ]
-    )
-    df = spark.createDataFrame([], schema=schema)
-
-    df = df.withColumn(
-        "DATA_TRANSAZIONE", F.to_timestamp(F.col("DATA_TRANSAZIONE"), "yyyy-MM-dd")
-    )
-
-    return df
+@pytest.mark.parametrize("time_bucket_size", [-2, "2", "-2", 2.0, 0])
+def test_init_wrong_time_bucket_size(time_bucket_size):
+    """Tests if __init__ method raises ValidationError (made by Pydantic) if
+    time_bucket_size not of the right type (int) or of value <= 0.
+    """
+    with pytest.raises(ValidationError):
+        TimeBucketing(
+            time_column_name="DATA_TRANSAZIONE",
+            time_bucket_size=time_bucket_size,
+            time_bucket_granularity="days",
+            time_bucket_col_name="bucket",
+        )
 
 
-@pytest.fixture
-def standard_time_bucketing():
-    return TimeBucketing(
-        time_column_name="DATA_TRANSAZIONE",
-        time_bucket_size=2,
-        time_bucket_granularity="days",
-        time_bucket_col_name="bucket",
-    )
-
-
-def test_time_bucketing_init():
+def test_init_wrong_time_bucket_granularity():
+    """Tests if __init__ method raises ValidationError (made by Pydantic) if
+    time_bucket_granularity is not of an allowed value.
+    """
     with pytest.raises(ValidationError):
         TimeBucketing(
             time_column_name="DATA_TRANSAZIONE",
@@ -90,9 +37,10 @@ def test_time_bucketing_init():
         )
 
 
-def test_time_bucketing_preprocess_emptiness(
-    sample_dataframe_empty, standard_time_bucketing
-):
+# TESTING _PREPROCESS METHOD
+
+
+def test_preprocess_emptiness(sample_dataframe_empty, standard_time_bucketing):
     """
     Tests if _preprocess method raises ValueError("Empty DataFrame") in case you provide
     an empty DataFrame.
@@ -101,25 +49,102 @@ def test_time_bucketing_preprocess_emptiness(
         standard_time_bucketing._preprocess(sample_dataframe_empty)
 
 
-@pytest.mark.parametrize(
-    "time_column_name", ["CA_CATEGORY_LIV0", "not_existing_column_name"]
-)
-def test_time_bucketing_preprocess_time_column_not_existing(
-    sample_dataframe_01, standard_time_bucketing, time_column_name
+def test_preprocess_time_column_not_existing(
+    sample_dataframe_01, standard_time_bucketing
 ):
     """
-    Tests if _preprocess method raises ValueError("Column {time_column_name} not a
-    timestamp column) in the case we give the method a column which is not a time or we
-    give a column name not present in the DataFrame.
+    Tests if _preprocess method raises ValueError("Column {time_column_name} is not a
+    column) in the case we give a column name not present in the DataFrame.
     """
-    standard_time_bucketing.time_column_name = time_column_name
+    standard_time_bucketing.time_column_name = "not_existing_column_name"
 
-    with pytest.raises(ValueError) as e_info:
+    with pytest.raises(
+        ValueError,
+        match=f"Column {standard_time_bucketing.time_column_name} is not a column",
+    ):
         standard_time_bucketing._preprocess(sample_dataframe_01)
 
+
+def test_preprocess_time_column_not_timestamp(
+    sample_dataframe_01, standard_time_bucketing
+):
+    """Tests if _preprocess method raises ValueError("Column {time_column_name} not a
+    timestamp column) in the case we give the method a column which is not a time.
+    """
+    standard_time_bucketing.time_column_name = "CA_CATEGORY_LIV0"
+
+    with pytest.raises(
+        ValueError,
+        match=(
+            f"Column {standard_time_bucketing.time_column_name} is not a timestamp"
+            " column"
+        ),
+    ):
+        standard_time_bucketing._preprocess(sample_dataframe_01)
+
+
+def test_preprocess_time_bucket_col_name_existing(
+    sample_dataframe_01, standard_time_bucketing
+):
+    """Tests if _preprocess method raises ValueError("Column {self.time_bucket_col_name}
+    already a column name) in the case we give the method a column which is already an
+    existing column name.
+    """
+    standard_time_bucketing.time_bucket_col_name = "CA_CATEGORY_LIV0"
+
+    with pytest.raises(
+        ValueError,
+        match=(
+            f"Column {standard_time_bucketing.time_bucket_col_name} is already a column"
+        ),
+    ):
+        standard_time_bucketing._preprocess(sample_dataframe_01)
+
+
+# Testing _PROCESS METHOD
+
+
+def test_process_new_column_added(sample_dataframe_01, spark, standard_time_bucketing):
+    """Tests if _process method adds a new column."""
+    result_df = standard_time_bucketing._process(sample_dataframe_01, spark)
+
+    assert len(sample_dataframe_01.columns) + 1 == len(result_df.columns)
+
+
+def test_process_new_column_type(
+    sample_dataframe_01, spark, standard_time_bucketing: TimeBucketing
+):
+    """Tests if _process method adds a new column with the right datactype."""
+    result_df = standard_time_bucketing._process(sample_dataframe_01, spark)
+
+    assert is_column_window(result_df, standard_time_bucketing.time_bucket_col_name)
+
+
+def test_process_timestamps_inside_bucket(
+    sample_dataframe_01, spark, standard_time_bucketing
+):
+    """Tests if _process method groups rows in the right way."""
+    result_df = standard_time_bucketing._process(sample_dataframe_01, spark)
+
+    def is_inside_time_bucket(timestamp, bucket):
+        return bucket.start <= timestamp < bucket.end
+
+    is_inside_time_bucket_udf = F.udf(
+        lambda timestamp, bucket: is_inside_time_bucket(timestamp, bucket),
+        BooleanType(),
+    )
+
+    result_df = result_df.withColumn(
+        "is_inside_time_bucket",
+        is_inside_time_bucket_udf(
+            F.col(standard_time_bucketing.time_column_name),
+            F.col(standard_time_bucketing.time_bucket_col_name),
+        ),
+    )
+
     assert (
-        str(e_info.value)
-        == f"Column {standard_time_bucketing.time_column_name} not a timestamp column"
-        or str(e_info.value)
-        == f"Column {standard_time_bucketing.time_column_name} is not a column"
+        result_df.count()
+        == result_df.filter(
+            F.col("is_inside_time_bucket") == True  # noqa: E712
+        ).count()
     )
