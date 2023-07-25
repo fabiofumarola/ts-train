@@ -1,7 +1,17 @@
 from typing import *
 
 from pyspark.sql.dataframe import DataFrame
+from pyspark.sql import functions as F
 from pyspark.sql.types import DataTypeSingleton, DateType, TimestampType
+from pyspark.sql.types import StringType, BooleanType
+from pyspark.sql.types import (
+    ByteType,
+    ShortType,
+    IntegerType,
+    LongType,
+    FloatType,
+    DoubleType,
+)
 
 
 def is_column_present(df: DataFrame, col_name: str) -> bool:
@@ -55,6 +65,42 @@ def check_column_dtype(
     return col_dtype.__class__ in valid_dtypes
 
 
+def is_column_categorical(df: DataFrame, col_name: str) -> bool:
+    """Checks if the column is categorical (string or boolean).
+
+    Args:
+        df (DataFrame): DataFrame on which to perform the check.
+        col_name (str): Column name on which to perform the check.
+
+    Returns:
+        bool: True if the column is categorical, False if not.
+    """
+    return check_column_dtype(df, col_name, [StringType, BooleanType])
+
+
+def is_column_numerical(df: DataFrame, col_name: str) -> bool:
+    """Checks if the column contain numeric values (int, float, double...).
+
+    Args:
+        df (DataFrame): DataFrame on which to perform the check.
+        col_name (str): Column name on which to perform the check.
+
+    Returns:
+        bool: True if the column is numerical, False if not.
+    """
+    # Define a list of numeric data types
+    all_numeric_types: List[DataTypeSingleton] = [
+        ByteType,
+        ShortType,
+        IntegerType,
+        LongType,
+        FloatType,
+        DoubleType,
+    ]
+
+    return check_column_dtype(df, col_name, all_numeric_types)
+
+
 def is_column_timestamp(df: DataFrame, col_name: str) -> bool:
     """Checks if the column is a date or timestamp.
 
@@ -91,3 +137,48 @@ def is_column_window(df: DataFrame, col_name: str) -> bool:
         == "StructType([StructField('start', TimestampType(), True),"
         " StructField('end', TimestampType(), True)])"
     )
+
+
+# Fixtures helper functions
+def cast_column_to_timestamp(
+    df: DataFrame, col_name: str, format: str = "yyyy-MM-dd"
+) -> DataFrame:
+    return df.withColumn(col_name, F.to_timestamp(F.col(col_name), format))
+
+
+def cast_struct_to_timestamps(
+    df: DataFrame,
+    struct_col_name: str,
+    struct_fields_name: Tuple[str, str] = ("start", "end"),
+    format: str = "yyyy-MM-dd",
+) -> DataFrame:
+    struct_field_start = f"{struct_col_name}.{struct_fields_name[0]}"
+    struct_field_end = f"{struct_col_name}.{struct_fields_name[1]}"
+
+    return df.withColumn(
+        struct_col_name,
+        F.struct(
+            F.to_timestamp(F.col(struct_field_start), format).alias(
+                struct_fields_name[0]
+            ),
+            F.to_timestamp(F.col(struct_field_end), format).alias(
+                struct_fields_name[1]
+            ),
+        ),
+    )
+
+
+def create_timestamps_struct(
+    df: DataFrame,
+    cols_name: Tuple[str, str],
+    struct_col_name: str,
+    struct_fields_name: Tuple[str, str] = ("start", "end"),
+    format: str = "yyyy-MM-dd",
+) -> DataFrame:
+    return df.withColumn(
+        struct_col_name,
+        F.struct(
+            F.to_timestamp(F.col(cols_name[0]), format).alias(struct_fields_name[0]),
+            F.to_timestamp(F.col(cols_name[1]), format).alias(struct_fields_name[1]),
+        ),
+    ).drop(*cols_name)

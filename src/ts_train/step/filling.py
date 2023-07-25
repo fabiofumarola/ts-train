@@ -13,9 +13,10 @@ from ts_train.common.utils import *
 
 class Filling(AbstractPipelineStep, BaseModel):
     time_bucket_col_name: StrictStr
-    identifier_cols_name: Union[StrictStr, List[StrictStr]]
+    identifier_cols_name: List[StrictStr]
     time_bucket_size: PositiveStrictInt
     time_bucket_granularity: TimeBucketGranularity
+    new_timestamp_col_name: StrictStr
 
     def _preprocess(self, df: DataFrame) -> None:
         # Checks if the DataFrame is full or empty
@@ -30,10 +31,6 @@ class Filling(AbstractPipelineStep, BaseModel):
             raise ValueError(
                 f"Column {self.time_bucket_col_name} is not a window column"
             )
-
-        # Convert identifier_cols_name into List[StrictStr]
-        if type(self.identifier_cols_name) == str:
-            self.identifier_cols_name = [self.identifier_cols_name]
 
         # Checks if identifier_cols_name are columns
         for identifier_col_name in self.identifier_cols_name:
@@ -94,7 +91,7 @@ class Filling(AbstractPipelineStep, BaseModel):
         # column representing the start of that time bucket
         # Drops timestamps array column
         ids_timestamps_df = ids_timestamps_df.withColumn(
-            "timestamp", F.explode(F.col("timestamps"))  # TODO make timestamp param
+            self.new_timestamp_col_name, F.explode(F.col("timestamps"))
         ).drop(
             "timestamps",
         )
@@ -105,7 +102,7 @@ class Filling(AbstractPipelineStep, BaseModel):
         # timestamps for every user from its min timestamp to his max
         # Fills with 0 null values of every column
         # Drops time bucket column
-        join_on_cols = [*self.identifier_cols_name, "timestamp"]
+        join_on_cols = [*self.identifier_cols_name, self.new_timestamp_col_name]
         df = (
             df.join(ids_timestamps_df, on=join_on_cols, how="right")
             .fillna(0)  # TODO verify this has no negative effect
