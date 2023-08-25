@@ -1,5 +1,3 @@
-from typing import *
-
 from pyspark.sql import SparkSession
 from pyspark.sql.types import (
     StructType,
@@ -12,45 +10,41 @@ import pytest
 
 from ts_train.step.time_bucketing import TimeBucketing  # type: ignore
 from ts_train.step.filling import Filling  # type: ignore
-from ts_train.step.aggregation import Aggregation  # type: ignore
+
 from ts_train.common.utils import (  # type: ignore
     cast_column_to_timestamp,  # type: ignore
-    create_timestamps_struct,  # type: ignore
+    cast_columns_to_timestamp,  # type: ignore
 )
+
+from ts_train.step.aggregating import (  # type: ignore
+    Aggregating,  # type: ignore
+    Aggregation,  # type: ignore
+    Filter,  # type: ignore
+    Pivot,  # type: ignore
+)  # type: ignore
 
 
 @pytest.fixture(scope="session")
 def spark():
-    return SparkSession.builder.getOrCreate()  # type: ignore
-
-
-"""
-# Fixture to create a SparkSession
-@pytest.fixture(scope="session")
-def spark_session():
-    spark = SparkSession.builder \
-        .appName("pytest_spark_tests") \
-        .getOrCreate()
-    yield spark
-    spark.stop()
-"""
+    spark_session = SparkSession.builder.getOrCreate()  # type: ignore
+    return spark_session
 
 
 @pytest.fixture
 def sample_dataframe_01(spark):
     df = spark.createDataFrame(
         data=[
-            (348272371, "2023-01-01", 5.50, "shopping", "true"),
-            (348272371, "2023-01-01", 6.10, "salute", "false"),
-            (348272371, "2023-01-01", 8.20, "trasporti", "false"),
-            (348272371, "2023-01-01", 1.50, "trasporti", "true"),
-            (348272371, "2023-01-06", 20.20, "shopping", "false"),
-            (348272371, "2023-01-06", 43.00, "shopping", "true"),
-            (348272371, "2023-01-06", 72.20, "shopping", "false"),
-            (234984832, "2023-01-01", 15.34, "salute", "true"),
-            (234984832, "2023-01-01", 36.22, "salute", "true"),
-            (234984832, "2023-01-01", 78.35, "salute", "false"),
-            (234984832, "2023-01-02", 2.20, "trasporti", "true"),
+            (348272371, "2023-01-01", 5.50, "shopping", True),
+            (348272371, "2023-01-01", 6.10, "salute", False),
+            (348272371, "2023-01-01", 8.20, "trasporti", False),
+            (348272371, "2023-01-01", 1.50, "trasporti", True),
+            (348272371, "2023-01-06", 20.20, "shopping", False),
+            (348272371, "2023-01-06", 43.00, "shopping", True),
+            (348272371, "2023-01-06", 72.20, "shopping", False),
+            (234984832, "2023-01-01", 15.34, "salute", True),
+            (234984832, "2023-01-01", 36.22, "salute", True),
+            (234984832, "2023-01-01", 78.35, "salute", False),
+            (234984832, "2023-01-02", 2.20, "trasporti", True),
         ],
         schema=[
             "ID_BIC_CLIENTE",
@@ -179,71 +173,9 @@ def sample_dataframe_01_bucketed(spark):
         ],
     )
 
-    return create_timestamps_struct(
-        df=df, cols_name=("bucket_start", "bucket_end"), struct_col_name="bucket"
-    )
+    df = cast_columns_to_timestamp(df, cols_name=["bucket_start", "bucket_end"])
 
-
-@pytest.fixture
-def sample_dataframe_02(spark):
-    df = spark.createDataFrame(
-        [
-            (348272371, "2023-01-01"),
-            (348272371, "2023-01-02"),
-            (348272371, "2023-01-06"),
-            (234984832, "2023-01-01"),
-            (234984832, "2023-01-02"),
-        ],
-        schema=[
-            "ID_BIC_CLIENTE",
-            "DATA_TRANSAZIONE",
-        ],
-    )
-
-    return cast_column_to_timestamp(df=df, col_name="DATA_TRANSAZIONE")
-
-
-@pytest.fixture
-def sample_dataframe_03(spark):
-    df = spark.createDataFrame(
-        [
-            (348272371, "2023-03-25"),
-            (348272371, "2023-03-26"),
-            (348272371, "2023-03-28"),
-            (234984832, "2023-03-26"),
-            (234984832, "2023-03-27"),
-        ],
-        schema=[
-            "ID_BIC_CLIENTE",
-            "DATA_TRANSAZIONE",
-        ],
-    )
-
-    return cast_column_to_timestamp(df=df, col_name="DATA_TRANSAZIONE")
-
-
-@pytest.fixture
-def sample_dataframe_pre_filling(spark):
-    df = spark.createDataFrame(
-        [
-            (348272371, "2023-01-01", "2023-01-02", 61, 55, 97),
-            (348272371, "2023-01-06", "2023-01-07", None, 1354, None),
-            (234984832, "2023-01-01", "2023-01-02", 1298, None, None),
-            (234984832, "2023-01-02", "2023-01-03", None, None, 22),
-        ],
-        schema=[
-            "ID_BIC_CLIENTE",
-            "bucket_start",
-            "bucket_end",
-            "salute",
-            "shopping",
-            "trasporti",
-        ],
-    )
-
-    return create_timestamps_struct(
-        df=df, cols_name=("bucket_start", "bucket_end"), struct_col_name="bucket"
-    )
+    return df
 
 
 @pytest.fixture
@@ -265,43 +197,148 @@ def sample_dataframe_empty(spark):
 
 
 @pytest.fixture
+def sample_dataframe_04(spark):
+    # Definisci la struttura dello schema
+    schema = [
+        "ID_BIC_CLIENTE",
+        "DATA_TRANSAZIONE",
+        "IMPORTO",
+    ]
+
+    # Dati di esempio
+    data = [
+        (1, "2023-04-16 01:00:00", 30.0),
+        (1, "2023-04-26 02:00:00", 50.0),
+        (1, "2023-04-26 05:00:00", 40.0),
+        (1, "2023-04-27 02:00:00", 70.0),
+        (1, "2023-04-29 04:00:00", 40.0),
+        (2, "2023-04-26 03:00:00", 40.0),
+        (2, "2023-04-26 07:00:00", 50.0),
+        (2, "2023-04-27 02:00:00", 60.0),
+        (2, "2023-04-27 03:00:00", 20.0),
+        (2, "2023-04-29 02:00:00", 23.0),
+        (3, "2023-04-25 02:00:00", 40.0),
+        (3, "2023-04-26 04:00:00", 23.0),
+        (3, "2023-04-27 01:00:00", 60.0),
+        (3, "2023-04-27 04:00:00", 30.0),
+        (3, "2023-04-28 02:00:00", 70.0),
+        (3, "2023-05-17 00:00:00", 12.0),
+        (3, "2024-03-26 02:00:00", 20.0),
+    ]
+
+    # Crea il dataframe
+    df = spark.createDataFrame(data, schema=schema)
+    df = cast_column_to_timestamp(
+        df=df, col_name="DATA_TRANSAZIONE", format="yyyy-MM-dd HH:mm:ss"
+    )
+    return df
+
+
+@pytest.fixture
+def sample_dataframe_for_aggregation_process_bucketed(spark):
+    df = spark.createDataFrame(
+        data=[
+            (348272371, "2023-01-01", "2023-01-02", 5, "shopping", "carta", True),
+            (348272371, "2023-01-01", "2023-01-02", 6, "salute", "cash", False),
+            (348272371, "2023-01-01", "2023-01-02", 8, "trasporti", "cash", False),
+            (348272371, "2023-01-01", "2023-01-02", 1, "trasporti", "carta", True),
+            (348272371, "2023-01-06", "2023-01-07", 20, "shopping", "bitcoin", False),
+            (348272371, "2023-01-06", "2023-01-07", 43, "shopping", "carta", True),
+            (348272371, "2023-01-06", "2023-01-07", 72, "shopping", "cash", False),
+            (234984832, "2023-01-01", "2023-01-02", 15, "salute", "carta", True),
+            (234984832, "2023-01-01", "2023-01-02", 36, "salute", "carta", True),
+            (234984832, "2023-01-01", "2023-01-02", 78, "salute", "cash", False),
+            (234984832, "2023-01-02", "2023-01-03", 2, "trasporti", "carta", True),
+        ],
+        schema=[
+            "ID_BIC_CLIENTE",
+            "bucket_start",
+            "bucket_end",
+            "IMPORTO",
+            "CA_CATEGORY_LIV0",
+            "METODO_PAGAMENTO",
+            "IS_CARTA",
+        ],
+    )
+
+    df = cast_columns_to_timestamp(df, cols_name=["bucket_start", "bucket_end"])
+
+    return df
+
+
+@pytest.fixture
 def standard_time_bucketing():
     return TimeBucketing(
-        time_zone="Europe/Rome",
         time_column_name="DATA_TRANSAZIONE",
-        time_bucket_size=2,
-        time_bucket_granularity="days",  # type: ignore
-        time_bucket_col_name="bucket",
+        time_bucket_size=1,
+        time_bucket_granularity="day",
     )
 
 
 @pytest.fixture
-def standard_aggregation():
-    return Aggregation(
-        numerical_col_name=["IMPORTO"],
+def standard_aggregator():
+    return Aggregating(
         identifier_cols_name=["ID_BIC_CLIENTE"],
-        all_aggregation_filters=[],
-        agg_funcs=["sum"],
+        time_bucket_cols_name=["bucket_start", "bucket_end"],
+        aggregations=[
+            Aggregation(
+                numerical_col_name="IMPORTO",
+                agg_function="sum",
+                filters=[Filter(col_name="IS_CARTA", operator="==", value=True)],
+            )
+        ],
     )
 
 
 @pytest.fixture
-def standard_filling():
+def complex_aggregator():
+    return Aggregating(
+        identifier_cols_name=["ID_BIC_CLIENTE"],
+        time_bucket_cols_name=["bucket_start", "bucket_end"],
+        aggregations=[
+            Aggregation(
+                numerical_col_name="IMPORTO",
+                agg_function="sum",
+                pivot=Pivot("METODO_PAGAMENTO", "in", None),
+            ),
+            Aggregation(
+                numerical_col_name="IMPORTO",
+                agg_function="sum",
+                pivot=Pivot("CA_CATEGORY_LIV0", "in", ["shopping", "salute"]),
+            ),
+            Aggregation(
+                numerical_col_name="IMPORTO",
+                agg_function="sum",
+                filters=[Filter("CA_CATEGORY_LIV0", "in", ["shopping", "salute"])],
+            ),
+            Aggregation(
+                numerical_col_name="IMPORTO",
+                agg_function="sum",
+                filters=[
+                    Filter("IS_CARTA", "=", False),
+                    Filter("METODO_PAGAMENTO", "=", "carta"),
+                ],
+            ),
+            Aggregation(
+                numerical_col_name="IMPORTO",
+                agg_function="sum",
+                filters=[
+                    Filter("IS_CARTA", "=", True),
+                    Filter("METODO_PAGAMENTO", "in", ["cash", "bitcoin"]),
+                ],
+            ),
+        ],
+    )
+
+
+@pytest.fixture
+def standard_filling(standard_time_bucketing):
     return Filling(
-        time_bucket_col_name="bucket",
         identifier_cols_name=["ID_BIC_CLIENTE"],
-        time_bucket_size=2,
-        time_bucket_granularity="days",  # type: ignore
-        new_timestamp_col_name="timestamp",
+        time_bucket_step=standard_time_bucketing,
     )
 
 
-# Expected results from aggregation steps
-
-# _pivot method
-
-
-# filter=("CA_CATEGORY_LIV0", [])
 @pytest.fixture
 def result_aggregation_pivot_string_cat_no_options(spark):
     df = spark.createDataFrame(
@@ -315,18 +352,18 @@ def result_aggregation_pivot_string_cat_no_options(spark):
             "ID_BIC_CLIENTE",
             "bucket_start",
             "bucket_end",
-            "sum_IMPORTO_by_CA_CATEGORY_LIV0_(salute)",
-            "sum_IMPORTO_by_CA_CATEGORY_LIV0_(shopping)",
-            "sum_IMPORTO_by_CA_CATEGORY_LIV0_(trasporti)",
+            "sum(IMPORTO)_where_CA_CATEGORY_LIV0=salute",
+            "sum(IMPORTO)_where_CA_CATEGORY_LIV0=shopping",
+            "sum(IMPORTO)_where_CA_CATEGORY_LIV0=trasporti",
         ],
     )
 
-    return create_timestamps_struct(
-        df=df, cols_name=("bucket_start", "bucket_end"), struct_col_name="bucket"
-    )
+    df = cast_columns_to_timestamp(df, cols_name=["bucket_start", "bucket_end"])
+
+    return df
 
 
-# filter=("CA_CATEGORY_LIV0", ["salute"])
+# pivot=Pivot("CA_CATEGORY_LIV0", "in", ["salute"])
 @pytest.fixture
 def result_aggregation_pivot_string_cat_one_option(spark):
     df = spark.createDataFrame(
@@ -340,16 +377,16 @@ def result_aggregation_pivot_string_cat_one_option(spark):
             "ID_BIC_CLIENTE",
             "bucket_start",
             "bucket_end",
-            "sum_IMPORTO_by_CA_CATEGORY_LIV0_(salute)",
+            "sum(IMPORTO)_where_CA_CATEGORY_LIV0=salute",
         ],
     )
 
-    return create_timestamps_struct(
-        df=df, cols_name=("bucket_start", "bucket_end"), struct_col_name="bucket"
-    )
+    df = cast_columns_to_timestamp(df, cols_name=["bucket_start", "bucket_end"])
+
+    return df
 
 
-# filter=("CA_CATEGORY_LIV0", ["salute", "trasporti"])
+# pivot=Pivot("CA_CATEGORY_LIV0", "in", ["salute", "trasporti"])
 @pytest.fixture
 def result_aggregation_pivot_string_cat_two_options(spark):
     df = spark.createDataFrame(
@@ -363,17 +400,17 @@ def result_aggregation_pivot_string_cat_two_options(spark):
             "ID_BIC_CLIENTE",
             "bucket_start",
             "bucket_end",
-            "sum_IMPORTO_by_CA_CATEGORY_LIV0_(salute)",
-            "sum_IMPORTO_by_CA_CATEGORY_LIV0_(trasporti)",
+            "sum(IMPORTO)_where_CA_CATEGORY_LIV0=salute",
+            "sum(IMPORTO)_where_CA_CATEGORY_LIV0=trasporti",
         ],
     )
 
-    return create_timestamps_struct(
-        df=df, cols_name=("bucket_start", "bucket_end"), struct_col_name="bucket"
-    )
+    df = cast_columns_to_timestamp(df, cols_name=["bucket_start", "bucket_end"])
+
+    return df
 
 
-# filter=("IS_CARTA", [])
+# pitov=Pivot("IS_CARTA", "in", [])
 @pytest.fixture
 def result_aggregation_pivot_bool_cat_no_options(spark):
     df = spark.createDataFrame(
@@ -387,22 +424,46 @@ def result_aggregation_pivot_bool_cat_no_options(spark):
             "ID_BIC_CLIENTE",
             "bucket_start",
             "bucket_end",
-            "sum_IMPORTO_by_IS_CARTA_(True)",
-            "sum_IMPORTO_by_IS_CARTA_(False)",
+            "sum(IMPORTO)_where_IS_CARTA=True",
+            "sum(IMPORTO)_where_IS_CARTA=False",
         ],
     )
 
-    return create_timestamps_struct(
-        df=df, cols_name=("bucket_start", "bucket_end"), struct_col_name="bucket"
+    df = cast_columns_to_timestamp(df, cols_name=["bucket_start", "bucket_end"])
+
+    return df
+
+
+# pitov=Pivot("IS_CARTA", "in", [True])
+@pytest.fixture
+def result_aggregation_pivot_bool_cat_true(spark):
+    df = spark.createDataFrame(
+        [
+            (348272371, "2023-01-01", "2023-01-02", 70),
+            (348272371, "2023-01-06", "2023-01-07", 430),
+            (234984832, "2023-01-01", "2023-01-02", 515),
+            (234984832, "2023-01-02", "2023-01-03", 22),
+        ],
+        schema=[
+            "ID_BIC_CLIENTE",
+            "bucket_start",
+            "bucket_end",
+            "sum(IMPORTO)_where_IS_CARTA=True",
+        ],
     )
 
+    df = cast_columns_to_timestamp(df, cols_name=["bucket_start", "bucket_end"])
 
-# _selecting method
+    return df
 
 
-# filters=[("CA_CATEGORY_LIV0", ["salute", "trasporti"]), ("IS_CARTA", ["true"])]
+# filter
+
+
+# filters=[Filter("CA_CATEGORY_LIV0", "in", ["salute", "trasporti"]),
+# Filter("IS_CARTA", "=", True)]
 @pytest.fixture
-def result_aggregation_select_salute_trasporti_is_carta(spark):
+def result_aggregator_filters_salute_trasporti_is_carta(spark):
     df = spark.createDataFrame(
         [
             (348272371, "2023-01-01", "2023-01-02", 15),
@@ -414,18 +475,18 @@ def result_aggregation_select_salute_trasporti_is_carta(spark):
             "ID_BIC_CLIENTE",
             "bucket_start",
             "bucket_end",
-            "sum_of_IMPORTO_by_CA_CATEGORY_LIV0_(salute_trasporti)_and_by_IS_CARTA_(True)",
+            "sum(IMPORTO)_where_CA_CATEGORY_LIV0[salute_trasporti]&IS_CARTA=True",
         ],
     )
 
-    return create_timestamps_struct(
-        df=df, cols_name=("bucket_start", "bucket_end"), struct_col_name="bucket"
-    )
+    df = cast_columns_to_timestamp(df, cols_name=["bucket_start", "bucket_end"])
+
+    return df
 
 
-# filters=[("CA_CATEGORY_LIV0", ["salute"]), ("IS_CARTA", ["true"])]
+# filters=[Filter("CA_CATEGORY_LIV0", "=", "salute"]), Filter("IS_CARTA", "=", "True])]
 @pytest.fixture
-def result_aggregation_select_salute_is_carta(spark):
+def result_aggregator_filters_salute_is_carta(spark):
     df = spark.createDataFrame(
         [
             (348272371, "2023-01-01", "2023-01-02", None),
@@ -437,18 +498,18 @@ def result_aggregation_select_salute_is_carta(spark):
             "ID_BIC_CLIENTE",
             "bucket_start",
             "bucket_end",
-            "sum_of_IMPORTO_by_CA_CATEGORY_LIV0_(salute)_and_by_IS_CARTA_(True)",
+            "sum(IMPORTO)_where_CA_CATEGORY_LIV0=salute&IS_CARTA=True",
         ],
     )
 
-    return create_timestamps_struct(
-        df=df, cols_name=("bucket_start", "bucket_end"), struct_col_name="bucket"
-    )
+    df = cast_columns_to_timestamp(df, cols_name=["bucket_start", "bucket_end"])
+
+    return df
 
 
-# filters=[("CA_CATEGORY_LIV0", ["salute", "trasporti"])]
+# filters=[Filter("CA_CATEGORY_LIV0", "in", ["salute", "trasporti"])]
 @pytest.fixture
-def result_aggregation_select_salute_trasporti(spark):
+def result_aggregator_filters_salute_trasporti(spark):
     df = spark.createDataFrame(
         [
             (348272371, "2023-01-01", "2023-01-02", 158),
@@ -460,40 +521,42 @@ def result_aggregation_select_salute_trasporti(spark):
             "ID_BIC_CLIENTE",
             "bucket_start",
             "bucket_end",
-            "sum_of_IMPORTO_by_CA_CATEGORY_LIV0_(salute_trasporti)",
+            "sum(IMPORTO)_where_CA_CATEGORY_LIV0[salute_trasporti]",
         ],
     )
 
-    return create_timestamps_struct(
-        df=df, cols_name=("bucket_start", "bucket_end"), struct_col_name="bucket"
-    )
+    df = cast_columns_to_timestamp(df, cols_name=["bucket_start", "bucket_end"])
+
+    return df
 
 
 # _process method
 
 
-# filters=[
-#    [("CA_CATEGORY_LIV0", ["salute", "trasporti"])],
-#    [("CA_CATEGORY_LIV0", ["salute"])],
-# ]
-# @pytest.fixture
-# def result_aggregation_process_01(spark):
-#     df = spark.createDataFrame(
-#         [
-#             (348272371, "2023-01-01", "2023-01-02", 158, 61),
-#             (348272371, "2023-01-06", "2023-01-07", None, None),
-#             (234984832, "2023-01-01", "2023-01-02", 1298, 1298),
-#             (234984832, "2023-01-02", "2023-01-03", 22, None),
-#         ],
-#         schema=[
-#             "ID_BIC_CLIENTE",
-#             "bucket_start",
-#             "bucket_end",
-#             "sum_of_IMPORTO_by_CA_CATEGORY_LIV0_(salute_trasporti)",
-#             "sum_of_IMPORTO_by_CA_CATEGORY_LIV0_(salute_trasporti)",
-#         ],
-#     )
+@pytest.fixture
+def expected_aggregated_df_01(spark):
+    df = spark.createDataFrame(
+        data=[
+            (348272371, "2023-01-06", "2023-01-07", 43, 72, 20, 135, 0, 135, 0, 0),
+            (234984832, "2023-01-01", "2023-01-02", 51, 78, 0, 0, 129, 129, 0, 0),
+            (234984832, "2023-01-02", "2023-01-03", 2, 0, 0, 0, 0, 0, 0, 0),
+            (348272371, "2023-01-01", "2023-01-02", 6, 14, 0, 5, 6, 11, 0, 0),
+        ],
+        schema=[
+            "ID_BIC_CLIENTE",
+            "bucket_start",
+            "bucket_end",
+            "sum(IMPORTO)_where_METODO_PAGAMENTO=carta",
+            "sum(IMPORTO)_where_METODO_PAGAMENTO=cash",
+            "sum(IMPORTO)_where_METODO_PAGAMENTO=bitcoin",
+            "sum(IMPORTO)_where_CA_CATEGORY_LIV0=shopping",
+            "sum(IMPORTO)_where_CA_CATEGORY_LIV0=salute",
+            "sum(IMPORTO)_where_CA_CATEGORY_LIV0[shopping_salute]",
+            "sum(IMPORTO)_where_IS_CARTA=False&METODO_PAGAMENTO=carta",
+            "sum(IMPORTO)_where_IS_CARTA=True&METODO_PAGAMENTO[cash_bitcoin]",
+        ],
+    )
 
-#     return create_timestamps_struct(
-#         df=df, cols_name=("bucket_start", "bucket_end"), struct_col_name="bucket"
-#     )
+    df = cast_columns_to_timestamp(df, cols_name=["bucket_start", "bucket_end"])
+
+    return df

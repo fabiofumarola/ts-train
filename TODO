@@ -2,3 +2,23 @@ Come generare features di aggregazione numeric/categor e temporale su 3/6 mesi:
 1) lanci N volte la pipeline di bucketing/generazione/filling/tsfresh e poi aggreghi
 
 Pipeline esplicita
+
+Richieste tipiche di configurazione:
+
+obiettivo finale:
+    prevedere quali utenti stanno abbandonando il servizio della carta in favore del contante
+
+Aggregazione richiesta:
+    variabile numeriche sono: importo transazione
+    variabili categoriche target: categorie di spesa, canale, tipo_della_carta, segno transazione, is_carta
+    di categorie si spesa prendiamo solo un sottoinsieme di opzioni: prelievo contante, spesa alimentare
+    di canale prendiamo tutte le categorie
+
+    il totale di tutti i soldi spesi con carte:
+        sum di importo delle Cat_lv0(shopping,salute,servizi_professionali,casa,utenze,viaggi,tempo_libero,spese_legali,tasse,trasporti,assicurazioniscuola_formazione,altre_spese,alimentari_spesa,spese_postali) e tipo_della_carta (tutto) e is_carta = true quando il segno della transazione è negativo
+
+
+    il totle dei soldi ritirati allo sportello:
+        sum di importo delle Cat_lv0(prelievo contante) quando il segno della transazione è positivo
+
+

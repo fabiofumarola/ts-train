@@ -13,6 +13,13 @@ from pyspark.sql.types import (
     DoubleType,
 )
 
+from ts_train.common.enums import (
+    GenericOperator,
+    NumericalOperator,
+    CategoricalOperator,
+    AggFunction,
+)
+
 
 def is_column_present(df: DataFrame, col_name: str) -> bool:
     """Checks if a column is present in the provided DataFrame.
@@ -146,6 +153,14 @@ def cast_column_to_timestamp(
     return df.withColumn(col_name, F.to_timestamp(F.col(col_name), format))
 
 
+def cast_columns_to_timestamp(
+    df: DataFrame, cols_name: list[str], format: str = "yyyy-MM-dd"
+) -> DataFrame:
+    for col_name in cols_name:
+        df = cast_column_to_timestamp(df, col_name, format)
+    return df
+
+
 def cast_struct_to_timestamps(
     df: DataFrame,
     struct_col_name: str,
@@ -181,4 +196,20 @@ def create_timestamps_struct(
             F.to_timestamp(F.col(cols_name[0]), format).alias(struct_fields_name[0]),
             F.to_timestamp(F.col(cols_name[1]), format).alias(struct_fields_name[1]),
         ),
-    ).drop(*cols_name)
+    )  # .drop(*cols_name)
+
+
+def parse_operator(
+    operator_str: str,
+) -> Union[GenericOperator, NumericalOperator, CategoricalOperator]:
+    for operator in [*GenericOperator, *NumericalOperator, *CategoricalOperator]:
+        if operator_str == operator.value:
+            return operator
+    raise ValueError("Operator not allowed")
+
+
+def parse_agg_function(agg_function_str: str) -> AggFunction:
+    for agg_function in AggFunction:
+        if agg_function_str == agg_function.value:
+            return agg_function
+    raise ValueError("Aggregation function not allowed")

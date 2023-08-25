@@ -1,111 +1,222 @@
-from typing import *
+from typing import Tuple, Literal
 
 from pyspark.sql.dataframe import DataFrame
 from pyspark.sql import SparkSession
+from pyspark.sql.functions import expr
 from pyspark.sql import functions as F
+
+import pandas as pd
+from pandas.tseries.offsets import DateOffset
+
 from pydantic import BaseModel, StrictStr
 
 from ts_train.step.core import AbstractPipelineStep
-from ts_train.common.enums import TimeBucketGranularity
 from ts_train.common.types import PositiveStrictInt
-from ts_train.common.utils import *
+from ts_train.common.utils import (
+    is_dataframe_empty,
+    is_column_present,
+    is_column_timestamp,
+)
 
 
-# TODO add month, year aggregation capability
+def get_data_offset(time_bucket_size: int, time_bucket_granularity: str) -> DateOffset:
+    """
+    Get the offset date for the provided size and granularity.
+
+    Returns:
+        offset (DateOffset): Offset for the provided size and granularity.
+    """
+    granularity = time_bucket_granularity[0].upper()
+
+    if granularity == "H":
+        return DateOffset(hours=time_bucket_size)
+    elif granularity == "D":
+        return DateOffset(days=time_bucket_size)
+    elif granularity == "W":
+        return DateOffset(weeks=time_bucket_size)
+    elif granularity == "M":
+        return DateOffset(months=time_bucket_size)
+    elif granularity == "Y":
+        return DateOffset(years=time_bucket_size)
+    else:
+        raise ValueError(f"Granularity {time_bucket_granularity} not supported")
+
+
 class TimeBucketing(AbstractPipelineStep, BaseModel):
     """
-    Associate each row with a interval of time (called time bucket).
-
-    It create a new colomn named time_bucket_col_name that is composed by a start and
-    end timestamp.
+    Associate each row with a time interval (time bucket).
+    It creates new columns named bucket_start and bucket_end.
 
     Attributes:
-        time_zone (StrictStr): Time zone in the following format: [Area]/[City]. In the
-            case of Italy it is: Europe/Rome.
-        time_column_name (StrictStr): Column name corresponding to the column in which
-            there are timestamp/date/datetime values.
-        time_bucket_size (PositiveStrictInt): Column for expressing the bucket duration.
-            Here you have to specify only the number. For example if you want a duration
-            of 2 days, here you have to set: 2. It hase to be a greater than 0 value.
-        time_bucket_granularity (TimeBucketGranularity): Column for expressing the
-            bucket unit. Here you have to specify only the unit. For example if you want
-            a duration of 2 days, here you have to set: "days". Allowed values are:
-            week, weeks, day, days, hour, hours, minute, minutes.
-        time_bucket_col_name (StrictStr): Column name corresponding to the column in
-            which you have to add time buckets. It should be a column name not already
-            used in the DataFrame.
+        time_column_name (StrictStr): Column name containing timestamp/date values.
+        time_bucket_size (PositiveStrictInt): Duration for each bucket (numeric value).
+        time_bucket_granularity (Literal[str]): Unit of time for bucket size
+        (e.g., "hour, day, week, month, year").
     """
 
-    time_zone: StrictStr
     time_column_name: StrictStr
     time_bucket_size: PositiveStrictInt
-    time_bucket_granularity: TimeBucketGranularity
-    time_bucket_col_name: StrictStr
+    time_bucket_granularity: Literal[
+        "hour",
+        "hours",
+        "day",
+        "days",
+        "week",
+        "weeks",
+        "month",
+        "months",
+        "year",
+        "years",
+    ]
 
     def _preprocess(self, df: DataFrame) -> None:
-        """Validates every condition of the DataFrame provided and of the instance
-        attributes which are dependent on the DataFrame.
+        """
+        Validates DataFrame conditions and instance attributes dependent on DataFrame.
 
         Args:
             df (DataFrame): DataFrame to check
 
         Raises:
-            ValueError: with "Empty DataFrame" message if the DataFrame is empty
-            ValueError: with "Column {time_column_name} is not a column" if the
-                provided time_column_name is not present in the provided DataFrame
-            ValueError: with "Column {time_column_name} not a timestamp column" if
-                the provided time_column_name is not a timestamp/date column
-            ValueError: with "Column {time_bucket_col_name} already a column name"
-                if time_bucket_col_name is already a column of the provided DataFrame
-
-        Returns:
-            None: if it returns None it means no issues have been found
+            ValueError: If DataFrame is empty or conditions are not met.
         """
-
-        # Checks if the DataFrame is full or empty
         if is_dataframe_empty(df):
             raise ValueError("Empty DataFrame")
 
-        # Checks if time_column_name is a column and is a timestamp column
         if not is_column_present(df, self.time_column_name):
-            raise ValueError(f"Column {self.time_column_name} is not a column")
+            raise ValueError(f"Column {self.time_column_name} is not present")
 
         if not is_column_timestamp(df, self.time_column_name):
             raise ValueError(
                 f"Column {self.time_column_name} is not a timestamp column"
             )
 
-        # Checks if time_bucket_col_name is not already an existing column name
-        if is_column_present(df, self.time_bucket_col_name):
-            raise ValueError(f"Column {self.time_bucket_col_name} is already a column")
-
-        return None
-
-    def _process(self, df: DataFrame, spark: SparkSession) -> DataFrame:
-        """Creates a new column with time_bucket_column name with inside time buckets.
-
-        It sets the Spark Time Zone to the provided time_zone.
+    def _create_timeline(
+        self, df: DataFrame
+    ) -> Tuple[pd.DatetimeIndex, pd.Timestamp, pd.Timestamp]:
+        """
+        Extract the minimum and maximum date from the DataFrame and generate a timeline
+        that is a list of dates with the provided size and granularity that goes from
+        the minimum date to the maximum date.
 
         Args:
-            df (DataFrame): DataFrame on which to perform the operation.
-            spark (SparkSession): SparkSession to utilize.
+            df (spark.DataFrame): DataFrame containing data.
 
         Returns:
-            DataFrame: DataFrame with added column with time_bucket_column column name.
+            timeline (pd.DatetimeIndex): Generated timeline with pandas daterange().
+            min_date (pd.Timestamp): Minimum date in the DataFrame.
+            max_date (pd.Timestamp): Maximum date in the DataFrame with offset.
         """
-        spark.conf.set("spark.sql.session.timeZone", self.time_zone)
+        df = df.orderBy(self.time_column_name)
+        first_element = df.first()
 
-        time_bucket_duration = (
-            str(self.time_bucket_size) + " " + self.time_bucket_granularity
+        if first_element:
+            first_element = first_element[self.time_column_name]
+            min_date = pd.to_datetime(str(first_element))
+            min_date = min_date.to_period(
+                self.time_bucket_granularity[0]
+            ).to_timestamp()
+
+            # Calculate max_date as last element's date + offset to ensure inclusivity
+            # of the maximum date in the last bucket
+            max_date = pd.to_datetime(df.tail(1)[0][self.time_column_name])
+
+            granularity = self.time_bucket_granularity[0].upper()
+
+            if granularity == "M":
+                frequency = f"{self.time_bucket_size}MS"
+            elif granularity == "W":
+                frequency = f"{self.time_bucket_size}W-MON"
+            elif granularity == "Y":
+                frequency = f"{self.time_bucket_size}YS"
+            else:
+                frequency = f"{self.time_bucket_size}{granularity}"
+
+            timeline = pd.date_range(min_date, max_date, freq=frequency)
+            return timeline, min_date, max_date
+        else:
+            raise ValueError("Empty DataFrame")
+
+    def _create_df_with_buckets(
+        self, spark_session: SparkSession, date_range: pd.DatetimeIndex
+    ) -> DataFrame:
+        """
+        Turn the pandas timeline into a Spark DataFrame were the timeline event are
+        splitted in buckets with start and end. In this process is critical to
+        avoid that spark automaticly change date due to timezone or daylight saving time
+
+        Args:
+            spark_session (SparkSession): Spark session.
+            date_range (pd.DatetimeIndex): Generated date range.
+
+        Returns:
+            bucket_df (DataFrame): DataFrame containing buckets with start and end.
+        """
+        offset = get_data_offset(self.time_bucket_size, self.time_bucket_granularity)
+        dates_df = pd.DataFrame(date_range, columns=["bucket_start"])
+        dates_df["bucket_end"] = dates_df["bucket_start"].shift(-1)
+        dates_df.at[dates_df.index[-1], "bucket_end"] = date_range[-1] + offset
+        dates_df["bucket_start"] = dates_df["bucket_start"].dt.strftime(
+            "%Y-%m-%d %H:%M:%S"
         )
-        time_bucket_column = F.window(
-            timeColumn=F.col(self.time_column_name),
-            windowDuration=time_bucket_duration,
+        dates_df["bucket_end"] = dates_df["bucket_end"].dt.strftime("%Y-%m-%d %H:%M:%S")
+        bucket_df = spark_session.createDataFrame(dates_df)
+        return bucket_df
+
+    def _bucketize_data(self, bucket_df: DataFrame, data_df: DataFrame) -> DataFrame:
+        """
+        Perform data bucketing based on the provided buckets.
+
+        Args:
+            bucket_df (DataFrame): DataFrame containing buckets with start and end.
+            data_df (DataFrame): DataFrame containing data to be bucketized.
+
+        Returns:
+            final_df (DataFrame): DataFrame with bucketized data.
+        """
+        final_df = data_df.join(
+            bucket_df,
+            expr(
+                f"{self.time_column_name} >= bucket_start AND {self.time_column_name} <"
+                " bucket_end"
+            ),
         )
+        final_df = final_df.orderBy(self.time_column_name)
+        final_df = final_df.withColumn(
+            "bucket_end", expr("bucket_end - interval 1 second")
+        )
+        final_df = final_df.withColumn(
+            "bucket_start", F.to_timestamp(F.col("bucket_start"), "yyyy-MM-dd HH:mm:ss")
+        )
+        final_df = final_df.withColumn(
+            "bucket_end", F.to_timestamp(F.col("bucket_end"), "yyyy-MM-dd HH:mm:ss")
+        )
+        return final_df
 
-        df = df.withColumn(self.time_bucket_col_name, time_bucket_column)
+    def _process(self, df: DataFrame, spark: SparkSession) -> DataFrame:
+        """
+        Put each transaction date inside a timebucket and return the DataFrame with
+        the new columns that indicate the bucket_start and bucket_end.
 
-        return df
+        Args:
+            df (DataFrame): DataFrame to operate on.
+            spark (SparkSession): SparkSession to use.
+
+        Returns:
+            DataFrame: DataFrame with added time_bucket_column.
+        """
+        timeline, _, _ = self._create_timeline(df)
+        bucket_df = self._create_df_with_buckets(spark, timeline)
+        final_df = self._bucketize_data(bucket_df, df)
+        return final_df
 
     def _postprocess(self, result: DataFrame) -> DataFrame:
+        """
+        Post-process the result DataFrame.
+
+        Args:
+            result (DataFrame): Resulting DataFrame from processing.
+
+        Returns:
+            DataFrame: Processed result DataFrame.
+        """
         return result

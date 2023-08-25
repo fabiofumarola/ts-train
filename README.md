@@ -6,11 +6,13 @@ Create a new conda environment with the following command:
 conda create --name env_name python=3.10
 conda activate env_name
 ```
-```
+
 Then install the poetry package inside the environment with:
+
 ```sh
 pip install poetry
 ```
+
 and then install all the requirements with:
 ```sh
 poetry install
@@ -59,9 +61,11 @@ make check
 ### Dockerfile
 There are two commands into the Makefile thats help with dockerfile interaction:
 ```sh
-make docker_build: this command generate the requirements.txt and then build the dockerfile
+make docker_build
 ```
+this command generate the requirements.txt and then build the dockerfile```
 
 ```sh
-make explore_docker: this command allow you to run the docker container with interaction mode
+make explore_docker
 ```
+this command allow you to run the docker container with interaction mode.

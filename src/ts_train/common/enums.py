@@ -1,7 +1,7 @@
 from enum import Enum
 
 
-class AvailableAggFunctions(str, Enum):
+class AggFunction(str, Enum):
     SUM = "sum"
     COUNT = "count"
     AVG = "avg"
@@ -9,6 +9,37 @@ class AvailableAggFunctions(str, Enum):
     MAX = "max"
     FIRST = "first"
     LAST = "last"
+
+    def __str__(self):
+        return self._value_
+
+
+class GenericOperator(str, Enum):
+    EQUAL = "="
+    DOUBLEEQUAL = "=="
+    NOTEQUAL = "!="
+
+    def __str__(self):
+        return self._value_
+
+
+class NumericalOperator(str, Enum):
+    LESS = "<"
+    LESSEQUAL = "<="
+    MORE = ">"
+    MOREEQUAL = ">="
+
+    def __str__(self):
+        return self._value_
+
+
+class CategoricalOperator(str, Enum):
+    IN = "in"
+    NOTIN = "notin"
+    NOTINSPACE = "not in"
+
+    def __str__(self):
+        return self._value_
 
 
 class TimeBucketGranularity(str, Enum):

@@ -1,4 +1,4 @@
-from typing import *
+from typing import Annotated
 import annotated_types
 
 from pydantic.types import Strict

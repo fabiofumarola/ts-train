@@ -14,7 +14,7 @@ check:
 	mypy src
 	mypy tests
 
-	ruff check src
-	ruff check tests
+	ruff check src --fix
+	ruff check tests --fix
 
-	pytest tests --cov --cov-report html:coverage
+	pytest tests -v -x --cov --cov-report html:coverage

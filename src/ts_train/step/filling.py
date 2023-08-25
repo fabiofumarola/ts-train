@@ -4,33 +4,22 @@ from pyspark.sql.dataframe import DataFrame
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
 from pydantic import BaseModel, StrictStr
+from pyspark.sql.functions import expr
+from pyspark.sql.functions import col, date_format
 
 from ts_train.step.core import AbstractPipelineStep
-from ts_train.common.enums import TimeBucketGranularity
-from ts_train.common.types import PositiveStrictInt
+from ts_train.step.time_bucketing import TimeBucketing
 from ts_train.common.utils import *
 
 
 class Filling(AbstractPipelineStep, BaseModel):
-    time_bucket_col_name: StrictStr
     identifier_cols_name: List[StrictStr]
-    time_bucket_size: PositiveStrictInt
-    time_bucket_granularity: TimeBucketGranularity
-    new_timestamp_col_name: StrictStr
+    time_bucket_step: TimeBucketing
 
     def _preprocess(self, df: DataFrame) -> None:
         # Checks if the DataFrame is full or empty
         if is_dataframe_empty(df):
             raise ValueError("Empty DataFrame")
-
-        # Checks if time_bucket_col_name is a column and is a timestamp column
-        if not is_column_present(df, self.time_bucket_col_name):
-            raise ValueError(f"Column {self.time_bucket_col_name} is not a column")
-
-        if not is_column_window(df, self.time_bucket_col_name):
-            raise ValueError(
-                f"Column {self.time_bucket_col_name} is not a window column"
-            )
 
         # Checks if identifier_cols_name are columns
         for identifier_col_name in self.identifier_cols_name:
@@ -40,29 +29,27 @@ class Filling(AbstractPipelineStep, BaseModel):
         return None
 
     def _process(self, df: DataFrame, spark: SparkSession) -> DataFrame:
+        # Creo la nuova timeline per tutti in pandas
+        self.time_bucket_step.time_column_name = "bucket_start"
+
         # Creates a list of identifier columns
         identifier_cols = [
             F.col(identifier_col_name)
             for identifier_col_name in self.identifier_cols_name
         ]
 
-        # Creates the bucket size
-        time_bucket_duration = (
-            str(self.time_bucket_size) + " " + self.time_bucket_granularity
-        )
-
         # Creates aliases for simplicity and code readability
-        time_bucket_start = f"{self.time_bucket_col_name}_start"
-        time_bucket_end = f"{self.time_bucket_col_name}_end"
-        min_time_bucket_start = f"min_{self.time_bucket_col_name}_start"
-        max_time_bucket_end = f"max_{self.time_bucket_col_name}_end"
+        time_bucket_start = "bucket_start_start"
+        time_bucket_end = "bucket_start_end"
+        min_time_bucket_start = "min_bucket_start"
+        max_time_bucket_end = "max_bucket_start"
 
         # Creates a new DataFrame with only the identifier columns
         # Splits the bucket into two column, start and end assigning to new columns
         ids_df = df.select(
             *identifier_cols,
-            F.col(self.time_bucket_col_name).start.alias(time_bucket_start),
-            F.col(self.time_bucket_col_name).end.alias(time_bucket_end),
+            F.col("bucket_start").alias(time_bucket_start),
+            F.col("bucket_end").alias(time_bucket_end),
         )
 
         # Takes only one record for every user
@@ -72,42 +59,49 @@ class Filling(AbstractPipelineStep, BaseModel):
             F.max(time_bucket_end).alias(max_time_bucket_end),
         )
 
-        # Creates a new column with inside for each user an array of timestamps from
-        # the min to the max of the time bucket of that particular user
-        # Drops min and max columns
-        ids_timestamps_df = ids_df.withColumn(
-            "timestamps",
-            F.expr(
-                f"sequence(to_timestamp({min_time_bucket_start}),"
-                f" to_timestamp({max_time_bucket_end}), interval"
-                f" {time_bucket_duration})"
-            ),
-        ).drop(
-            min_time_bucket_start,
-            max_time_bucket_end,
+        # create the new timeline with every buckets
+        df_to_timeline = df.withColumn(
+            "bucket_start", date_format(col("bucket_start"), "yyyy-MM-dd HH:mm:ss")
+        )
+        df_to_timeline = df.withColumn(
+            "bucket_end", date_format(col("bucket_end"), "yyyy-MM-dd HH:mm:ss")
         )
 
-        # Explodes the array of timestamps into a series of rows each with a timestamp
-        # column representing the start of that time bucket
-        # Drops timestamps array column
-        ids_timestamps_df = ids_timestamps_df.withColumn(
-            self.new_timestamp_col_name, F.explode(F.col("timestamps"))
-        ).drop(
-            "timestamps",
+        timeline, _, _ = self.time_bucket_step._create_timeline(df_to_timeline)
+        bucket_df = self.time_bucket_step._create_df_with_buckets(spark, timeline)
+        bucket_df = bucket_df.withColumn(
+            "bucket_end", expr("bucket_end - interval 1 second")
         )
 
-        df = df.withColumn("timestamp", F.col(self.time_bucket_col_name).start)
+        # Collego gli utenti alla nuova timeline
+        # Converte le colonne delle date in tipo timestamp
+        bucket_df = bucket_df.withColumn(
+            "bucket_start", col("bucket_start").cast("timestamp")
+        )
+        bucket_df = bucket_df.withColumn(
+            "bucket_end", col("bucket_end").cast("timestamp")
+        )
+
+        # Esegue la join basata sulla condizione di intervallo
+        result_df = ids_df.join(
+            bucket_df,
+            (bucket_df["bucket_start"] >= ids_df[min_time_bucket_start])
+            & (bucket_df["bucket_end"] <= ids_df[max_time_bucket_end]),
+        )
+
+        # Seleziona le colonne desiderate per la tabella finale
+        all_timestamp_per_clients = result_df.select(
+            *self.identifier_cols_name, "bucket_start", "bucket_end"
+        )
 
         # Joins the DataFrame with the new DataFrame in which has been generated
         # timestamps for every user from its min timestamp to his max
         # Fills with 0 null values of every column
         # Drops time bucket column
-        join_on_cols = [*self.identifier_cols_name, self.new_timestamp_col_name]
-        df = (
-            df.join(ids_timestamps_df, on=join_on_cols, how="right")
-            .fillna(0)  # TODO verify this has no negative effect
-            .drop(self.time_bucket_col_name)  # TODO choose if we want to drop
-        )
+        join_on_cols = self.identifier_cols_name + ["bucket_start", "bucket_end"]
+        df = df.join(all_timestamp_per_clients, on=join_on_cols, how="right").fillna(0)
+
+        df = df.orderBy(*join_on_cols)
 
         return df
 

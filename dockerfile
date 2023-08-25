@@ -28,7 +28,6 @@ RUN poetry build
 
 FROM base as runtime
 # take only requirements so the dockerfile do no see new edit in source code and do not invalide cache
-#COPY requirements.txt .
 COPY --from=poetry /ts_train/requirements.txt /ts_train/requirements.txt
 RUN pip install -r requirements.txt
 
@@ -38,4 +37,3 @@ RUN pip install dist/ts_train*.whl
 
 #ENV PATH="/ts_train/.venv/bin:$PATH"
 #CMD ["python", "user_code/test_docker.py"]
-
