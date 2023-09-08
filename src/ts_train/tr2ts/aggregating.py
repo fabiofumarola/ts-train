@@ -28,7 +28,7 @@ from pydantic import (
 )
 from pydantic.dataclasses import dataclass
 
-from ts_train.step.core import AbstractPipelineStep
+from ts_train.tr2ts.core import AbstractPipelineStep
 from ts_train.common.utils import *
 from ts_train.common.enums import (
     NumericalOperator,
@@ -98,7 +98,6 @@ class Pivot:
         StrictStr,
         AfterValidator(lambda v: parse_operator(v)),
     ]
-    # TODO eliminare la list[Any] che consente l'utilizzo di []
     value: Union[list[StrictStr], list[StrictBool], list[StrictInt], None]
     name: Union[str, None] = None
 
@@ -126,7 +125,7 @@ class Aggregating(AbstractPipelineStep, BaseModel):
             if not is_column_present(df, identifier_col_name):
                 raise ValueError(f"Column {identifier_col_name} is not a column")
 
-        # Checks if time_bucket_col_name is a column and is a timebucket
+        # Checks if time_bucket_col_name is a column and is a timestamp
         for time_bucket_col_name in self.time_bucket_cols_name:
             if not is_column_present(df, time_bucket_col_name):
                 raise ValueError(f"Column {time_bucket_col_name} is not a column")
@@ -141,6 +140,14 @@ class Aggregating(AbstractPipelineStep, BaseModel):
             self._check_aggregation(df, aggregation)
 
     def _check_aggregation(self, df: DataFrame, aggregation: Aggregation) -> None:
+        # Allows to input empty list instead of None for filters
+        if isinstance(aggregation.filters, list) and len(aggregation.filters) == 0:
+            aggregation.filters = None
+
+        # Allows to input empty list instead of None for filters
+        if isinstance(aggregation.filters, list) and len(aggregation.filters) == 0:
+            aggregation.filters = None
+
         # Checks existency and type on numerical column
         if not is_column_present(df, aggregation.numerical_col_name):
             raise ValueError(f"Column {aggregation.numerical_col_name} is not a column")
@@ -210,7 +217,9 @@ class Aggregating(AbstractPipelineStep, BaseModel):
             )
 
     def _preprocess_pivot(self, df: DataFrame, pivot: Pivot) -> Pivot:
-        if pivot.value is None:
+        if pivot.value is None or (
+            isinstance(pivot.value, list) and len(pivot.value) == 0
+        ):
             pivot.value = [
                 row[0] for row in df.select(pivot.col_name).distinct().collect()
             ]

@@ -8,15 +8,15 @@ from pyspark.sql.types import (
 )
 import pytest
 
-from ts_train.step.time_bucketing import TimeBucketing  # type: ignore
-from ts_train.step.filling import Filling  # type: ignore
+from ts_train.tr2ts.time_bucketing import TimeBucketing  # type: ignore
+from ts_train.tr2ts.filling import Filling  # type: ignore
 
 from ts_train.common.utils import (  # type: ignore
     cast_column_to_timestamp,  # type: ignore
     cast_columns_to_timestamp,  # type: ignore
 )
 
-from ts_train.step.aggregating import (  # type: ignore
+from ts_train.tr2ts.aggregating import (  # type: ignore
     Aggregating,  # type: ignore
     Aggregation,  # type: ignore
     Filter,  # type: ignore
@@ -269,7 +269,7 @@ def sample_dataframe_for_aggregation_process_bucketed(spark):
 @pytest.fixture
 def standard_time_bucketing():
     return TimeBucketing(
-        time_column_name="DATA_TRANSAZIONE",
+        time_col_name="DATA_TRANSAZIONE",
         time_bucket_size=1,
         time_bucket_granularity="day",
     )
@@ -337,6 +337,28 @@ def standard_filling(standard_time_bucketing):
         identifier_cols_name=["ID_BIC_CLIENTE"],
         time_bucket_step=standard_time_bucketing,
     )
+
+
+@pytest.fixture
+def no_pivot_no_filter_expected_df(spark):
+    df = spark.createDataFrame(
+        [
+            (348272371, "2023-01-01", "2023-01-02", 213),
+            (348272371, "2023-01-06", "2023-01-07", 1354),
+            (234984832, "2023-01-01", "2023-01-02", 1298),
+            (234984832, "2023-01-02", "2023-01-03", 22),
+        ],
+        schema=[
+            "ID_BIC_CLIENTE",
+            "bucket_start",
+            "bucket_end",
+            "sum(IMPORTO)",
+        ],
+    )
+
+    df = cast_columns_to_timestamp(df, cols_name=["bucket_start", "bucket_end"])
+
+    return df
 
 
 @pytest.fixture

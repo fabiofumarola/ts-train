@@ -3,7 +3,7 @@ from typing import List
 from pyspark.sql.dataframe import DataFrame
 from pyspark.sql import SparkSession
 
-from ts_train.step.core import AbstractPipelineStep
+from ts_train.tr2ts.core import AbstractPipelineStep
 
 
 class TrasformationPipeline:

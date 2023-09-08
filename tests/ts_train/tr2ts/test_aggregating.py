@@ -1,7 +1,7 @@
 import pytest
 from pyspark_assert import assert_frame_equal  # type: ignore
 
-from ts_train.step.aggregating import (  # type: ignore
+from ts_train.tr2ts.aggregating import (  # type: ignore
     Aggregating,  # type: ignore
     Aggregation,  # type: ignore
     Filter,  # type: ignore
@@ -117,6 +117,30 @@ def test_preprocess_not_bool_value_for_bool_col(
 
 
 # TESTING _PROCESS METHOD
+
+
+def test_process_no_pivot_no_filter(
+    spark,
+    sample_dataframe_01_bucketed,
+    no_pivot_no_filter_expected_df,
+):
+    aggregating = Aggregating(
+        identifier_cols_name=["ID_BIC_CLIENTE"],
+        time_bucket_cols_name=["bucket_start", "bucket_end"],
+        aggregations=[
+            Aggregation(numerical_col_name="IMPORTO", agg_function="sum", filters=[])
+        ],
+    )
+
+    result_df = aggregating(df=sample_dataframe_01_bucketed, spark=spark)
+
+    assert_frame_equal(
+        result_df,
+        no_pivot_no_filter_expected_df,
+        check_column_order=False,
+        check_row_order=False,
+        check_nullable=False,
+    )
 
 
 @pytest.mark.parametrize(

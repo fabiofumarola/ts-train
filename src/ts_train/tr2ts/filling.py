@@ -7,8 +7,8 @@ from pydantic import BaseModel, StrictStr
 from pyspark.sql.functions import expr
 from pyspark.sql.functions import col, date_format
 
-from ts_train.step.core import AbstractPipelineStep
-from ts_train.step.time_bucketing import TimeBucketing
+from ts_train.tr2ts.core import AbstractPipelineStep
+from ts_train.tr2ts.time_bucketing import TimeBucketing
 from ts_train.common.utils import *
 
 
@@ -30,7 +30,7 @@ class Filling(AbstractPipelineStep, BaseModel):
 
     def _process(self, df: DataFrame, spark: SparkSession) -> DataFrame:
         # Creo la nuova timeline per tutti in pandas
-        self.time_bucket_step.time_column_name = "bucket_start"
+        self.time_bucket_step.time_col_name = "bucket_start"
 
         # Creates a list of identifier columns
         identifier_cols = [

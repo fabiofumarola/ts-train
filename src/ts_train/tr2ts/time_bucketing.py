@@ -10,7 +10,7 @@ from pandas.tseries.offsets import DateOffset
 
 from pydantic import BaseModel, StrictStr
 
-from ts_train.step.core import AbstractPipelineStep
+from ts_train.tr2ts.core import AbstractPipelineStep
 from ts_train.common.types import PositiveStrictInt
 from ts_train.common.utils import (
     is_dataframe_empty,
@@ -20,11 +20,18 @@ from ts_train.common.utils import (
 
 
 def get_data_offset(time_bucket_size: int, time_bucket_granularity: str) -> DateOffset:
-    """
-    Get the offset date for the provided size and granularity.
+    """Get the offset date for the provided size and granularity.
+
+    Args:
+        time_bucket_size (int): Duration for each bucket (numeric value).
+        time_bucket_granularity (str): Unit of time for bucket size.
+
+    Raises:
+        ValueError: with message "Granularity {time_bucket_granularity} not supported"
+            when you ask for a not supported granualrity.
 
     Returns:
-        offset (DateOffset): Offset for the provided size and granularity.
+        DateOffset: Offset for the provided size and granularity.
     """
     granularity = time_bucket_granularity[0].upper()
 
@@ -48,13 +55,13 @@ class TimeBucketing(AbstractPipelineStep, BaseModel):
     It creates new columns named bucket_start and bucket_end.
 
     Attributes:
-        time_column_name (StrictStr): Column name containing timestamp/date values.
+        time_col_name (StrictStr): Column name containing timestamp/date values.
         time_bucket_size (PositiveStrictInt): Duration for each bucket (numeric value).
-        time_bucket_granularity (Literal[str]): Unit of time for bucket size
-        (e.g., "hour, day, week, month, year").
+        time_bucket_granularity (Literal[str]): Unit of time for bucket size. Possible
+            values: hour, hours, day, days, week, weeks, month, months, year, years".
     """
 
-    time_column_name: StrictStr
+    time_col_name: StrictStr
     time_bucket_size: PositiveStrictInt
     time_bucket_granularity: Literal[
         "hour",
@@ -70,47 +77,52 @@ class TimeBucketing(AbstractPipelineStep, BaseModel):
     ]
 
     def _preprocess(self, df: DataFrame) -> None:
-        """
-        Validates DataFrame conditions and instance attributes dependent on DataFrame.
+        """Checks if the provided DataFrame and other parameters are valid. Raises
+        exceptions otherwise.
 
         Args:
             df (DataFrame): DataFrame to check
 
         Raises:
-            ValueError: If DataFrame is empty or conditions are not met.
+            ValueError: with message "Empty DataFrame" if you provide a DataFrame with
+                no data inside.
+            ValueError: with message "Column {self.time_col_name} is not present" when
+                the column with name time_col_name is not present in the DataFrame.
+            ValueError: with message "Column {self.time_col_name} is not a timestamp
+                column" when the time_col_name column is not a timestamp column.
         """
         if is_dataframe_empty(df):
             raise ValueError("Empty DataFrame")
 
-        if not is_column_present(df, self.time_column_name):
-            raise ValueError(f"Column {self.time_column_name} is not present")
+        if not is_column_present(df, self.time_col_name):
+            raise ValueError(f"Column {self.time_col_name} is not present")
 
-        if not is_column_timestamp(df, self.time_column_name):
-            raise ValueError(
-                f"Column {self.time_column_name} is not a timestamp column"
-            )
+        if not is_column_timestamp(df, self.time_col_name):
+            raise ValueError(f"Column {self.time_col_name} is not a timestamp column")
 
     def _create_timeline(
         self, df: DataFrame
     ) -> Tuple[pd.DatetimeIndex, pd.Timestamp, pd.Timestamp]:
-        """
-        Extract the minimum and maximum date from the DataFrame and generate a timeline
+        """Extract the minimum and maximum date from the DataFrame and generate a timeline
         that is a list of dates with the provided size and granularity that goes from
         the minimum date to the maximum date.
 
         Args:
-            df (spark.DataFrame): DataFrame containing data.
+            df (DataFrame): DataFrame containing data.
+
+        Raises:
+            ValueError: with "Empty DataFrame" if the DataFrame is empty.
 
         Returns:
             timeline (pd.DatetimeIndex): Generated timeline with pandas daterange().
             min_date (pd.Timestamp): Minimum date in the DataFrame.
             max_date (pd.Timestamp): Maximum date in the DataFrame with offset.
         """
-        df = df.orderBy(self.time_column_name)
+        df = df.orderBy(self.time_col_name)
         first_element = df.first()
 
         if first_element:
-            first_element = first_element[self.time_column_name]
+            first_element = first_element[self.time_col_name]
             min_date = pd.to_datetime(str(first_element))
             min_date = min_date.to_period(
                 self.time_bucket_granularity[0]
@@ -118,7 +130,7 @@ class TimeBucketing(AbstractPipelineStep, BaseModel):
 
             # Calculate max_date as last element's date + offset to ensure inclusivity
             # of the maximum date in the last bucket
-            max_date = pd.to_datetime(df.tail(1)[0][self.time_column_name])
+            max_date = pd.to_datetime(df.tail(1)[0][self.time_col_name])
 
             granularity = self.time_bucket_granularity[0].upper()
 
@@ -176,11 +188,11 @@ class TimeBucketing(AbstractPipelineStep, BaseModel):
         final_df = data_df.join(
             bucket_df,
             expr(
-                f"{self.time_column_name} >= bucket_start AND {self.time_column_name} <"
+                f"{self.time_col_name} >= bucket_start AND {self.time_col_name} <"
                 " bucket_end"
             ),
         )
-        final_df = final_df.orderBy(self.time_column_name)
+        final_df = final_df.orderBy(self.time_col_name)
         final_df = final_df.withColumn(
             "bucket_end", expr("bucket_end - interval 1 second")
         )

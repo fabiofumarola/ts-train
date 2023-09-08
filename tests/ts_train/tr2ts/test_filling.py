@@ -4,7 +4,7 @@ from pyspark.sql.functions import col, lit
 from functools import reduce
 
 # from ts_train.step.time_bucketing import TimeBucketing  # type: ignore
-from ts_train.step.filling import Filling  # type: ignore
+from ts_train.tr2ts.filling import Filling  # type: ignore
 
 
 # TESTING _PREPROCESS METHOD
