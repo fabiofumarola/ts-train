@@ -13,10 +13,35 @@ from ts_train.common.utils import *
 
 
 class Filling(AbstractPipelineStep, BaseModel):
+    """Filling step is useful to fill missing values for time buckets generated during
+    the Aggregating step. If no value was present for a time bucket in input to the
+    Aggregating step, the time bucket in output would be skipped. To have a continuous
+    time series we have to apply the Filling step.
+
+    Null values are replaced with 0 as it is assumed that if a time bucket does not have
+    a value not transaction has been done in that time bucket so the value is 0.
+
+    Attributes:
+        identifier_cols_name (list[StrictStr]): list of column names to identify a
+            user form another.
+        time_bucket_step (TimeBucketing): TimeBucketing step to take configurations from
+            it.
+    """
+
     identifier_cols_name: List[StrictStr]
     time_bucket_step: TimeBucketing
 
     def _preprocess(self, df: DataFrame) -> None:
+        """Preprocess the DataFrame checking for issues.
+
+        Args:
+            df (DataFrame): DataFrame used for the check.
+
+        Raises:
+        ValueError: with message "Empty DataFrame" if the DataFrame is empty.
+        ValueError: with message "Column {identifier_col_name} is not a column" if the
+            identifier_col_name column name is not present.
+        """
         # Checks if the DataFrame is full or empty
         if is_dataframe_empty(df):
             raise ValueError("Empty DataFrame")
@@ -29,6 +54,15 @@ class Filling(AbstractPipelineStep, BaseModel):
         return None
 
     def _process(self, df: DataFrame, spark: SparkSession) -> DataFrame:
+        """Process the DataFrame to add new time buckets with 0 value.
+
+        Args:
+            df (DataFrame): DataFrame to process and fill.
+            spark (SparkSession): Spark Session to be used.
+
+        Returns:
+            DataFrame: Filled DataFrame.
+        """
         # Creo la nuova timeline per tutti in pandas
         self.time_bucket_step.time_col_name = "bucket_start"
 
@@ -106,4 +140,12 @@ class Filling(AbstractPipelineStep, BaseModel):
         return df
 
     def _postprocess(self, result: DataFrame) -> DataFrame:
+        """In this step  no other actions are performed in the _postprocess methos.
+
+        Args:
+            result (DataFrame): DataFrame from the _process method.
+
+        Returns:
+            DataFrame: Same DataFrame as input.
+        """
         return result

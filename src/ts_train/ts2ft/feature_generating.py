@@ -17,11 +17,38 @@ from ts_train.common.utils import (
 
 
 class FeatureGenerating(BaseModel):
+    """FeatureGenerating step, being part of the second block called ts2ft, is used to
+    generate features from time series. You have to provide equidistant time series in
+    time and you get a DataFrame with a row for every user and a column for every
+    requested feature.
+
+    Remembder to drop any column which is not a aggregation column or
+    identifier_col_name or time_col_name column.
+
+    Attributes:
+        identifier_col_name (StrictStr): name of the column used to identify users.
+        time_col_name (StrictStr): name of the column used to store data. You only need
+            the bucket_start or the bucket_end. Drop one of the two and provide the
+            other here.
+        feature_calculators: list of names of feature calculators. Feature calculators
+            are method to calculate features. Each feature calculator can have some
+            parameters. Each feature calculator has one or more value for each
+            parameter. This translates to a number of combinations generating different
+            features. The list of every feature available is here:
+            https://tsfresh.readthedocs.io/en/latest/text/list_of_features.html
+    """
+
     identifier_col_name: StrictStr
     time_col_name: StrictStr
     feature_calculators: Optional[list[StrictStr]] = None
 
     def _get_default_fc_parameters(self) -> dict[str, Any]:
+        """Retrives the filered dictionary of params for each feature calculator.
+
+        Returns:
+            dict[str, Any]: Dict with key the name of the feature calculator and with
+                value the dict with the params.
+        """
         default_fc_settings = dict(ComprehensiveFCParameters())
         if self.feature_calculators is None:
             return default_fc_settings
@@ -34,6 +61,12 @@ class FeatureGenerating(BaseModel):
         return filtered_default_fc_parameters
 
     def _check_feature_calculators(self) -> None:
+        """Checks if a feature caulculator requested is available.
+
+        Raises:
+            ValueError: with message "Feature calculator {fc_name} is not supported" if
+                the feature calculator is not present in the the full list.
+        """
         if self.feature_calculators is not None:
             default_fc_settings = dict(ComprehensiveFCParameters())
             for fc_name in self.feature_calculators:
@@ -41,6 +74,22 @@ class FeatureGenerating(BaseModel):
                     raise ValueError(f"Feature calculator {fc_name} is not supported")
 
     def _preprocess(self, df: DataFrame) -> None:
+        """Checks for problems with the DataFrame and the parameters provided.
+
+        Args:
+            df (DataFrame): DataFrame on which to perform the tests.
+
+        Raises:
+            ValueError: with message "Column {identifier_col_name} is not a column" when
+                identifier_col_name is not present in the DataFrame.
+            ValueError: with message "Column {time_col_name} is not a column" when
+                time_col_name is not present in the DataFrame.
+            ValueError: with message "Column {time_col_name} is not a timestamp" when
+                time_col_name is not a timestamp column containing time data.
+            ValueError: with message "Column {col_name} is not a numerical column" when
+                other columns a part from identifier_col_name and time_col_name are not
+                numerical columns.
+        """
         # Checks if identifier_col_name is a column
         if not is_column_present(df, self.identifier_col_name):
             raise ValueError(f"Column {self.identifier_col_name} is not a column")
@@ -65,6 +114,18 @@ class FeatureGenerating(BaseModel):
                     raise ValueError(f"Column {col_name} is not a numerical column")
 
     def _stack_df(self, df: DataFrame) -> DataFrame:
+        """Stacks numerical variables into a stacked format from a wide format. This is
+        usefull beacuse TsFresh library needs it in this form. The resulting DataFrame
+        is made of two columns:
+            - kind: the name of the numerical variable
+            - value: the value of that numerical variable
+
+        Args:
+            df (DataFrame): DataFram on which to perform the transformation.
+
+        Returns:
+            DataFrame: DataFrame in stacked form.
+        """
         # Column names used for identification for grouping or pivoting operation
         extended_identifier_cols_name = [self.identifier_col_name] + [
             self.time_col_name
@@ -89,6 +150,15 @@ class FeatureGenerating(BaseModel):
         return stacked_df
 
     def _generate_features(self, stacked_df: DataFrame) -> DataFrame:
+        """Generates features from the stacked DataFrame. Internally we convert the
+        output DataFrame with generated features from a stacked form to a wide form.
+
+        Args:
+            stacked_df (DataFrame): Stacked DataFrame on which to generate features.
+
+        Returns:
+            DataFrame: DataFrame in wide form with generated features.
+        """
         grouped_stacked_df = stacked_df.groupby(self.identifier_col_name, "kind")
 
         # Calculates features on spark on chunks in a stacked format
@@ -110,6 +180,14 @@ class FeatureGenerating(BaseModel):
         return unstacked_features_df
 
     def _drop_null_columns(self, df: DataFrame) -> DataFrame:
+        """Drops columns with every value null. This features are not useful.
+
+        Args:
+            df (DataFrame): DataFrame on which to perform the drop operation.
+
+        Returns:
+            DataFrame: DataFrame without
+        """
         null_counts = (
             df.select(
                 [F.count(F.when(F.col(c).isNull(), c)).alias(c) for c in df.columns]
@@ -123,6 +201,16 @@ class FeatureGenerating(BaseModel):
         return df
 
     def _clean_features_df(self, features_df: DataFrame) -> DataFrame:
+        """Cleans the DataFrame. It renames columns replacing "." with "dot" and ","
+        with "_". It also calls _drop_null_columns to drop columns with every value null
+
+        Args:
+            features_df (DataFrame): DataFrame of features on which to perform the
+                cleaning.
+
+        Returns:
+            DataFrame: Cleaned DataFrame.
+        """
         # Renames column names to remove ".", replacing it with "dot" and "," with "_"
         new_cols = [
             F.col(f"`{c}`").alias(c.replace(".", "dot").replace(",", "_"))
@@ -136,16 +224,27 @@ class FeatureGenerating(BaseModel):
         return features_df
 
     def _process(self, df: DataFrame) -> DataFrame:
+        """Process the DataFrame, calling the pipeline made of:
+            - Stacking the input DataFrame (from wide to stacked form)
+            - Genereting features from the stacked DataFrame
+            - Cleaning the resulting DataFrame of generated features
+
+        Args:
+            df (DataFrame): DataFrame with numerical variables from which to perform
+                feature generation. Every other column a part from the
+                identifier_col_name and time_col_name column are considered numerical
+                variables to be used for feature generation.
+
+        Returns:
+            DataFrame: DataFrame with a row for every user and a column for every
+                feature for every numerical variable present in the input DataFrame.
+        """
         stacked_df = self._stack_df(df)
         features_df = self._generate_features(stacked_df)
         cleaned_features_df = self._clean_features_df(features_df)
 
         return cleaned_features_df
 
-    def _postprocess(self, result: DataFrame) -> DataFrame:
-        return result
-
     def __call__(self, df: DataFrame) -> DataFrame:
         self._preprocess(df)
-        result = self._process(df)
-        return self._postprocess(result)
+        return self._process(df)

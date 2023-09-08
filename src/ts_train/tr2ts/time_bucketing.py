@@ -144,6 +144,7 @@ class TimeBucketing(AbstractPipelineStep, BaseModel):
                 frequency = f"{self.time_bucket_size}{granularity}"
 
             timeline = pd.date_range(min_date, max_date, freq=frequency)
+
             return timeline, min_date, max_date
         else:
             raise ValueError("Empty DataFrame")
@@ -151,17 +152,16 @@ class TimeBucketing(AbstractPipelineStep, BaseModel):
     def _create_df_with_buckets(
         self, spark_session: SparkSession, date_range: pd.DatetimeIndex
     ) -> DataFrame:
-        """
-        Turn the pandas timeline into a Spark DataFrame were the timeline event are
-        splitted in buckets with start and end. In this process is critical to
-        avoid that spark automaticly change date due to timezone or daylight saving time
+        """Turn the pandas timeline into a Spark DataFrame were the timeline event are
+        splitted in buckets with start and end. In this process is critical to avoid
+        that spark automaticly change date due to timezone or daylight saving time.
 
         Args:
             spark_session (SparkSession): Spark session.
             date_range (pd.DatetimeIndex): Generated date range.
 
         Returns:
-            bucket_df (DataFrame): DataFrame containing buckets with start and end.
+            DataFrame: DataFrame containing buckets with start and end.
         """
         offset = get_data_offset(self.time_bucket_size, self.time_bucket_granularity)
         dates_df = pd.DataFrame(date_range, columns=["bucket_start"])
@@ -171,7 +171,9 @@ class TimeBucketing(AbstractPipelineStep, BaseModel):
             "%Y-%m-%d %H:%M:%S"
         )
         dates_df["bucket_end"] = dates_df["bucket_end"].dt.strftime("%Y-%m-%d %H:%M:%S")
+
         bucket_df = spark_session.createDataFrame(dates_df)
+
         return bucket_df
 
     def _bucketize_data(self, bucket_df: DataFrame, data_df: DataFrame) -> DataFrame:
@@ -202,6 +204,7 @@ class TimeBucketing(AbstractPipelineStep, BaseModel):
         final_df = final_df.withColumn(
             "bucket_end", F.to_timestamp(F.col("bucket_end"), "yyyy-MM-dd HH:mm:ss")
         )
+
         return final_df
 
     def _process(self, df: DataFrame, spark: SparkSession) -> DataFrame:
@@ -214,11 +217,12 @@ class TimeBucketing(AbstractPipelineStep, BaseModel):
             spark (SparkSession): SparkSession to use.
 
         Returns:
-            DataFrame: DataFrame with added time_bucket_column.
+            DataFrame: DataFrame with added bucket_start and bucket_end columns.
         """
         timeline, _, _ = self._create_timeline(df)
         bucket_df = self._create_df_with_buckets(spark, timeline)
         final_df = self._bucketize_data(bucket_df, df)
+
         return final_df
 
     def _postprocess(self, result: DataFrame) -> DataFrame:
@@ -226,7 +230,7 @@ class TimeBucketing(AbstractPipelineStep, BaseModel):
         Post-process the result DataFrame.
 
         Args:
-            result (DataFrame): Resulting DataFrame from processing.
+            result (DataFrame): Resulting DataFrame from _process.
 
         Returns:
             DataFrame: Processed result DataFrame.
