@@ -211,9 +211,12 @@ class FeatureGenerating(BaseModel):
         Returns:
             DataFrame: Cleaned DataFrame.
         """
-        # Renames column names to remove ".", replacing it with "dot" and "," with "_"
+        # Renames column names to remove ".", replacing it with "dot" and "," with "_
+        # and removes " from strings.
         new_cols = [
-            F.col(f"`{c}`").alias(c.replace(".", "dot").replace(",", "_"))
+            F.col(f"`{c}`").alias(
+                c.replace(".", "dot").replace(",", "_").replace('"', "")
+            )
             for c in features_df.columns
         ]
         features_df = features_df.select(new_cols)

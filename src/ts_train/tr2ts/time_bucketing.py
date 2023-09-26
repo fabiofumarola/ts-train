@@ -103,9 +103,9 @@ class TimeBucketing(AbstractPipelineStep, BaseModel):
     def _create_timeline(
         self, df: DataFrame
     ) -> Tuple[pd.DatetimeIndex, pd.Timestamp, pd.Timestamp]:
-        """Extract the minimum and maximum date from the DataFrame and generate a timeline
-        that is a list of dates with the provided size and granularity that goes from
-        the minimum date to the maximum date.
+        """Extract the minimum and maximum date from the DataFrame and generate a
+        timeline that is a list of dates with the provided size and granularity that
+        goes from the minimum date to the maximum date.
 
         Args:
             df (DataFrame): DataFrame containing data.
