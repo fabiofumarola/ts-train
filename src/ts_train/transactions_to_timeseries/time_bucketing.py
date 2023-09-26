@@ -10,7 +10,7 @@ from pandas.tseries.offsets import DateOffset
 
 from pydantic import BaseModel, StrictStr
 
-from ts_train.tr2ts.core import AbstractPipelineStep
+from ts_train.transactions_to_timeseries.core import AbstractPipelineStep
 from ts_train.common.types import PositiveStrictInt
 from ts_train.common.utils import (
     is_dataframe_empty,

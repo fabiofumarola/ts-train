@@ -1,7 +1,7 @@
 import pytest
 import pandas as pd
 
-from ts_train.ts2ft.feature_pruning import FeaturePruning  # type: ignore
+from ts_train.timeseries_to_features.feature_pruning import FeaturePruning  # type: ignore
 
 
 @pytest.fixture

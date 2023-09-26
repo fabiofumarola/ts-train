@@ -1,7 +1,7 @@
 import pytest
 from pyspark_assert import assert_frame_equal  # type: ignore
 
-from ts_train.tr2ts.aggregating import (  # type: ignore
+from ts_train.transactions_to_timeseries.aggregating import (  # type: ignore
     Aggregating,  # type: ignore
     Aggregation,  # type: ignore
     Filter,  # type: ignore

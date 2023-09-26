@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 from pyspark.sql import functions as F
-from ts_train.tr2ts.time_bucketing import TimeBucketing  # type: ignore
+from ts_train.transactions_to_timeseries.time_bucketing import TimeBucketing  # type: ignore
 from pyspark.sql.functions import col, lit
 from functools import reduce
 from pyspark.sql.types import StringType
