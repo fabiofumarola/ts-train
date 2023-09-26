@@ -28,7 +28,7 @@ from pydantic import (
 )
 from pydantic.dataclasses import dataclass
 
-from ts_train.tr2ts.core import AbstractPipelineStep
+from ts_train.transactions_to_timeseries.core import AbstractPipelineStep
 from ts_train.common.utils import *
 from ts_train.common.enums import (
     NumericalOperator,

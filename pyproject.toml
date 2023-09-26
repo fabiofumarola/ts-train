@@ -8,25 +8,28 @@ packages = [{include = "ts_train", from = "src"}]
 
 [tool.poetry.dependencies]
 python = "^3.9"
-pre-commit = "^3.3.3"
-pyspark = "^3.4.1"
 omegaconf = "^2.3.0"
 pydantic = "^2.0"
 pydantic-settings = "^2.0.0"
-pytest = "^7.4.0"
 loguru = "^0.7.0"
 typing-extensions = "^4.7.1"
-pytest-cov = "^4.1.0"
-black = "^23.7.0"
-mypy = "^1.4.1"
-ruff = "^0.0.278"
-pyspark-assert = "^0.1.0"
-pandas-stubs = "^2.0.2.230605"
 pandas = "^2.0.3"
 tsfresh = "^0.20.1"
 pyarrow = "^13.0.0"
+pyspark = "^3.4.1"
 
+[tool.poetry.group.dev]
+optional = true
 
+[tool.poetry.group.dev.dependencies]
+pre-commit = "^3.4.0"
+ruff = "^0.0.291" 
+black = "^23.9.1" 
+pytest = "^7.4.2" 
+mypy = "^1.5.1" 
+pyspark-assert = "^0.1.0" 
+pytest-cov = "^4.1.0" 
+pandas-stubs = "^2.0.3.230814" 
 
 [tool.ruff]
 ignore = ["F403", "F405"] # allow to import *

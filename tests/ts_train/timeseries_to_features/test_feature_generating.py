@@ -2,7 +2,7 @@ import pytest
 from pyspark_assert import assert_frame_equal  # type: ignore
 from pyspark.sql.types import StructType, StructField, LongType, DoubleType
 
-from ts_train.ts2ft.feature_generating import FeatureGenerating  # type: ignore
+from ts_train.timeseries_to_features.feature_generating import FeatureGenerating  # type: ignore
 from ts_train.common.utils import (  # type: ignore
     cast_column_to_timestamp,
 )

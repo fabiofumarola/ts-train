@@ -7,8 +7,8 @@ from pydantic import BaseModel, StrictStr
 from pyspark.sql.functions import expr
 from pyspark.sql.functions import col, date_format
 
-from ts_train.tr2ts.core import AbstractPipelineStep
-from ts_train.tr2ts.time_bucketing import TimeBucketing
+from ts_train.transactions_to_timeseries.core import AbstractPipelineStep
+from ts_train.transactions_to_timeseries.time_bucketing import TimeBucketing
 from ts_train.common.utils import *
 
 
