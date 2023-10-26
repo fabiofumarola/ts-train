@@ -213,3 +213,38 @@ def parse_agg_function(agg_function_str: str) -> AggFunction:
         if agg_function_str == agg_function.value:
             return agg_function
     raise ValueError("Aggregation function not allowed")
+
+
+def check_not_empty_dataframe(df: DataFrame) -> None:
+    """Checks if the DataFrame is empty or not. In case it is empty it raises ValueError
+
+    Args:
+        df (DataFrame): DataFrame to check.
+
+    Raises:
+        ValueError: if the DataFrame is empty.
+    """
+    if df.count() == 0:
+        raise ValueError("DataFrame should not be empty")
+
+
+def check_cols_in_dataframe(
+    df: DataFrame, cols_name: list[str], cols_name_variable_name: str
+) -> None:
+    """Checks if every column in cols_name is present in DataFrame. If not raises a
+    ValueError exception.
+
+    Args:
+        df (DataFrame): DataFrame to be used for the check.
+        cols_name (list[str]): List of columns names to check.
+        cols_name_variable_name (str): Variable name containing the columns name to be
+            used in the exception error.
+
+    Raises:
+        ValueError: if at least one column from cols_name is not present in the
+            columns DataFrame.
+    """
+    if not all(item in df.columns for item in cols_name):
+        raise ValueError(
+            f"{cols_name_variable_name} contains some column not present in DataFrame"
+        )
