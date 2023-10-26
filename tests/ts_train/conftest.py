@@ -8,15 +8,15 @@ from pyspark.sql.types import (
 )
 import pytest
 
-from ts_train.transactions_to_timeseries.time_bucketing import TimeBucketing  # type: ignore
-from ts_train.transactions_to_timeseries.filling import Filling  # type: ignore
+from ts_train.tr2ts.time_bucketing import TimeBucketing  # type: ignore
+from ts_train.tr2ts.filling import Filling  # type: ignore
 
 from ts_train.common.utils import (  # type: ignore
     cast_column_to_timestamp,  # type: ignore
     cast_columns_to_timestamp,  # type: ignore
 )
 
-from ts_train.transactions_to_timeseries.aggregating import (  # type: ignore
+from ts_train.tr2ts.aggregating import (  # type: ignore
     Aggregating,  # type: ignore
     Aggregation,  # type: ignore
     Filter,  # type: ignore
