@@ -464,7 +464,6 @@ out
 
 # Nuxt.js build / generate output
 .nuxt
-dist
 
 # Gatsby files
 .cache/
@@ -523,7 +522,6 @@ __pycache__/
 # Distribution / packaging
 .Python
 develop-eggs/
-dist/
 downloads/
 eggs/
 .eggs/
@@ -538,6 +536,7 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
+dist/*/ts_train*
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
