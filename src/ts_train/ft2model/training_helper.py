@@ -175,7 +175,7 @@ class TrainingHelper(BaseModel):
 
         Returns:
             DataFrame: DataFrame with rawPrediction, prediction, probability new
-                columns.
+                columns in case of classification and only prediction for regression.
         """
         self._check_model_already_fitted()
 
@@ -201,6 +201,9 @@ class TrainingHelper(BaseModel):
                 - Regression: rmse, mse, r2, mae, var
                 Defaults to "f1" for classification and "rmse" for regression.
 
+        Raises:
+            Exception: if you have not used the predict method before the score one.
+
         Returns:
             float: value of the chosen metric.
         """
@@ -210,11 +213,14 @@ class TrainingHelper(BaseModel):
         self._check_model_already_fitted()
 
         if (
-            "prediction" not in df.columns
-            or "rawPrediction" not in df.columns
-            or "probability" not in df.columns
-        ):
-            df = self.predict(df=df)
+            self.type == "classification"
+            and (
+                "prediction" not in df.columns
+                or "rawPrediction" not in df.columns
+                or "probability" not in df.columns
+            )
+        ) or (self.type == "regression" and "prediction" not in df.columns):
+            raise Exception("You have to run predict method before scoring.")
 
         return score(
             df=df,
