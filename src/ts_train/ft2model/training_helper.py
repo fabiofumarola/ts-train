@@ -100,17 +100,16 @@ class TrainingHelper(BaseModel):
                 " also included in features_cols_name"
             )
 
-        if not self.params:
-            self.params = {}
-        self.params["num_workers"] = self.num_workers
-
-    def fit(self, df: DataFrame, params: Params, objective=None) -> Transformer:
+    def fit(
+        self, df: DataFrame, objective=None, params: Optional[Params] = None
+    ) -> Transformer:
         """Given a DataFrame it fits the model on the features provided in the
         DataFrame.
 
         Args:
             df (DataFrame): DataFrame containing features and target.
-            params (Params): parameters to be passed to the regressor or the classifier.
+            params (Params, optional): parameters to be passed to the regressor or the
+                classifier.
             objective (str, optional): Metric to be used to optimize the model and train
                 it. Available options:
                 - Classification: multi:softmax, multi:softprob
@@ -139,6 +138,7 @@ class TrainingHelper(BaseModel):
                 type=self.type,
                 label_col_name=self.label_col_name,
                 objective=objective,
+                num_workers=self.num_workers,
                 params=params,
             )
             self._transformer = fit(
@@ -210,18 +210,14 @@ class TrainingHelper(BaseModel):
         val_df = self._preprocess_dataframe(val_df)
 
         if self._are_params_tunable(params):
-            self._estimator = (
-                get_estimator(
-                    type=self.type,
-                    label_col_name=self.label_col_name,
-                    objective=objective,
-                ),
-            )  # type: ignore
-            best_params, self._transformer = tune_parameters(
+            best_params, self._transformer, self._estimator = tune_parameters(
                 train_df=train_df,
                 val_df=val_df,
                 params=params,
-                estimator=self._estimator,  # type: ignore
+                type=self.type,
+                label_col_name=self.label_col_name,
+                objective=objective,
+                num_workers=self.num_workers,
                 evaluator=get_evaluator(
                     metric=metric, label_col_name=self.label_col_name
                 ),

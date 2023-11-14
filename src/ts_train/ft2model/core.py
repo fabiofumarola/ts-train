@@ -441,6 +441,7 @@ def get_estimator(
     features_col_name: str = "features",
     label_col_name: str = "label",
     objective: Optional[str] = None,
+    num_workers: int = 1,
     params: Optional[Params] = None,
 ) -> Estimator:
     """Creates an Estimator with the params provided.
@@ -696,9 +697,9 @@ def get_features_importance(
     for idx, feature_col_name in enumerate(encoded_features_cols_name):
         feature_id = f"f{idx}"
         if feature_id in features_ids_and_importances:
-            features_names_and_importances[
-                feature_col_name
-            ] = features_ids_and_importances[feature_id]
+            features_names_and_importances[feature_col_name] = (
+                features_ids_and_importances[feature_id]
+            )
         else:
             features_names_and_importances[feature_col_name] = 0.0
 
@@ -710,9 +711,12 @@ def tune_parameters(
     train_df: DataFrame,
     val_df: DataFrame,
     params: TunableParams,
-    estimator: Estimator,
+    type: str,
+    label_col_name: str,
+    objective: str,
+    num_workers: int,
     evaluator: Evaluator,
-) -> Tuple[Params, Transformer]:
+) -> Tuple[Params, Transformer, Estimator]:
     """Tunes parameters provided testing on validation DataFrame to evalute each
     configuration. Training of each model is done on training DataFrame
 
@@ -724,7 +728,22 @@ def tune_parameters(
         val_df (DataFrame): DataFrame to be used to evaluate the best model.
         params (TunableParams): dictionary where keys are param names and values are
             values for the paramter or list of possible values.
-        estimator (Estimator): Estimator/model to fit.
+        type (str): Type of training model to be used. You have to chose between
+            "classification" and "regression".
+        label_col_name (str): column name of target/label in the DataFrame to be
+            used to fit the model for the classification or regression task.
+        objective (str): Metric to be used to optimize the model and train
+            it. Available options:
+            - Classification: multi:softmax, multi:softprob
+            - Binary classification: binary:logistic, binary:logitraw, binary:hinge
+            - Regression: reg:squarederror, reg:squaredlogerror, reg:logistic,
+                reg:pseudohubererror, reg:absoluteerror, reg:quantileerror
+            Others could be found here: https://xgboost.readthedocs.io/en/stable/parameter.html#learning-task-parameters
+            Defaults to "multi:softmax" for classification and "reg:squarederror"
+            for regression.
+        num_workers (int): How many XGBoost workers to be used to train. Each XGBoost
+            worker corresponds to one spark task. It can be also provided in the params
+            dictionary. This parameter overwrites the params dictionary.
         evaluator (Evaluator): Evaluator used to score each model.
 
     Raises:
@@ -749,17 +768,27 @@ def tune_parameters(
 
     best_score = -1
     best_model = None
+    best_estimator = None
     best_params = None
     for params in params_grid:
+        estimator = get_estimator(
+            type=type,
+            label_col_name=label_col_name,
+            objective=objective,
+            num_workers=num_workers,
+            params=params,  # type: ignore
+        )
+
         model = fit(train_df, estimator)
         model_score = score(val_df, evaluator)
 
         if model_score > best_score:
             best_score = model_score  # type: ignore
             best_model = model
+            best_estimator = estimator
             best_params = params
 
-    return best_params, best_model  # type: ignore
+    return best_params, best_model, best_estimator  # type: ignore
 
 
 def tune_parameters_cv(
