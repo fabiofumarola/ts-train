@@ -1,10 +1,14 @@
 from typing import Union, Tuple, Optional
+import itertools
+import math
 
 from pyspark.sql import DataFrame
+from pyspark.sql import functions as F
 from pyspark.ml import Transformer, Estimator
 from pyspark.ml.tuning import CrossValidator, ParamGridBuilder
 from pyspark.ml.linalg import DenseVector, SparseVector
 from pyspark.ml.feature import (
+    Bucketizer,
     VectorAssembler,
     StringIndexer,
     StringIndexerModel,
@@ -18,12 +22,14 @@ from pyspark.ml.evaluation import (
     RegressionEvaluator,
 )
 from xgboost.spark import SparkXGBClassifier, SparkXGBRegressor  # type: ignore
+import plotly.express as px  # type: ignore
 
 from ts_train.common.utils import check_not_empty_dataframe, check_cols_in_dataframe
 
 
 ParamValue = Union[str, int, float]
-Params = dict[str, Union[list[ParamValue], ParamValue]]
+TunableParams = dict[str, Union[list[ParamValue], ParamValue]]
+Params = dict[str, ParamValue]
 
 
 def _cols_name_encode(cols_name: list[str]) -> list[str]:
@@ -98,14 +104,88 @@ def _compute_cols_encoding(
     return cols_encoding
 
 
-def train_test_split(df: DataFrame, test_size=0.3) -> Tuple[DataFrame, DataFrame]:
-    """Split the input DataFrame into two differnt DataFrame with the second
+def _bucketize_df(
+    df: DataFrame, value_col_name: str, buckets_width: int = 100
+) -> DataFrame:
+    """Used to group samples within buckets with the same range of values.
+
+    Args:
+        df (DataFrame): containing samples to be grouped.
+        value_col_name (str): column name of the value to be considered to group
+            samples.
+        buckets_width (int, optional): width for groups, measured in units of value.
+            Defaults to 100.
+
+    Returns:
+        DataFrame: containing a new columns called "bucket"
+    """
+    max_value = df.agg(F.max(value_col_name).alias("max_value")).collect()[0].max_value
+    splits: list[float] = list(range(0, math.ceil(max_value), buckets_width))
+    splits.append(float("inf"))
+
+    bucketizer = Bucketizer(splits=splits, inputCol=value_col_name, outputCol="bucket")
+    bucketed_df = bucketizer.setHandleInvalid("keep").transform(df)
+
+    return bucketed_df
+
+
+def stratified_hist(
+    df: DataFrame,
+    value_col_name: str,
+    buckets_width: int = 100,
+    buckets_num: int = 10,
+    min_bucket_idx: Optional[int] = None,
+    max_bucket_idx: Optional[int] = None,
+    hist_params: Optional[dict[str, Union[int, float, str, bool]]] = None,
+) -> None:
+    """Plots a histogram with buckets counts.
+
+    Args:
+        df (DataFrame): containing samples to be bucketed.
+        value_col_name (str): column name of the value to be considered to group
+            samples.
+        buckets_width (int, optional): width for groups, measured in units of value.
+            Defaults to 100.
+        buckets_num (int, optional): Number of buckets to be shown. Defaults to 10.
+        min_bucket_idx (Optional[int], optional): If specified filters the buckets to be
+            shown. If it the minimum index of bucket to be shown Defaults to None.
+        max_bucket_idx (Optional[int], optional): If specified filters the buckets to be
+            shown. If it the maximum index of bucket to be shown Defaults to None.
+        hist_params (Optional[dict[str, Union[int, float, str, bool]]]): parameters to
+            be passed to the px.histogram method. Default to None
+    """
+    bucketed_df = _bucketize_df(
+        df=df, value_col_name=value_col_name, buckets_width=buckets_width
+    )
+
+    bucketed_df = bucketed_df.groupby("bucket").count()
+    if min_bucket_idx:
+        bucketed_df = bucketed_df.filter(F.col("bucket") > min_bucket_idx)
+    if max_bucket_idx:
+        bucketed_df = bucketed_df.filter(F.col("bucket") < max_bucket_idx)
+    bucketed_pdf = bucketed_df.toPandas()
+
+    if hist_params is None:
+        fig = px.histogram(bucketed_pdf, x="bucket", y="count", nbins=buckets_num)
+    else:
+        fig = px.histogram(
+            bucketed_pdf, x="bucket", y="count", nbins=buckets_num, **hist_params
+        )
+    fig.show()
+
+
+def train_test_split(
+    df: DataFrame, test_size=0.3, seed: Optional[int] = None
+) -> Tuple[DataFrame, DataFrame]:
+    """Splits the input DataFrame into two different DataFrames with the second
     test_size the total size of the original one.
 
     Args:
         df (DataFrame): DataFrame to split.
         test_size (float, optional): Size ratio of the test DataFrame. Defaults
             to 0.3.
+        seed (Optional[int], optional): if you prefer to have repredicible results set a
+            seed for the random sampling used inside the method. Defaults to None.
 
     Raises:
         ValueError: if DataFrame is empty.
@@ -118,7 +198,53 @@ def train_test_split(df: DataFrame, test_size=0.3) -> Tuple[DataFrame, DataFrame
     if test_size >= 1:
         raise ValueError("test_size should be less than 1")
 
-    return df.randomSplit(weights=[1 - test_size, test_size])  # type: ignore
+    return df.randomSplit(weights=[1 - test_size, test_size], seed=seed)  # type: ignore
+
+
+def stratified_train_test_split(
+    df: DataFrame,
+    value_col_name: str,
+    test_size: float = 0.3,
+    buckets_width: int = 100,
+    seed: Optional[int] = None,
+) -> Tuple[DataFrame, DataFrame]:
+    """Splits the input DataFrame into two different DataFrames with the second
+    test_size the total size of the original one.
+
+    This split is made using the buckets provided by the method parameters. Samples are
+    sampled within these buckets to guarantee fairness.
+
+    Args:
+        df (DataFrame): DataFrame to split.
+        value_col_name (str): column name of the value to be considered to group
+            samples.
+        test_size (float, optional): size ratio of the test DataFrame. Defaults
+            to 0.3.
+        buckets_width (int, optional): width for groups, measured in units of value.
+            Defaults to 100.
+        seed (Optional[int], optional): if you prefer to have repredicible results set a
+            seed for the random sampling used inside the method. Defaults to None.
+
+    Returns:
+        DataFrame: train DataFrame with 1 - test_size the original size of the
+            DataFrame.
+        DataFrame: test DataFrame with test_size the original size of the DataFrame.
+    """
+    bucketed_df = _bucketize_df(
+        df=df, value_col_name=value_col_name, buckets_width=buckets_width
+    )
+
+    fractions = {
+        item.bucket: 1 - test_size
+        for item in bucketed_df.select(F.col("bucket")).distinct().collect()
+    }
+    train_df = bucketed_df.sampleBy("bucket", fractions, seed=seed)
+    test_df = bucketed_df.subtract(train_df)
+
+    train_df = train_df.drop("bucket")
+    test_df = test_df.drop("bucket")
+
+    return train_df, test_df
 
 
 def label_encode(
@@ -314,6 +440,7 @@ def get_estimator(
     type: str,
     features_col_name: str = "features",
     label_col_name: str = "label",
+    objective: Optional[str] = None,
     params: Optional[Params] = None,
 ) -> Estimator:
     """Creates an Estimator with the params provided.
@@ -345,6 +472,7 @@ def get_estimator(
             label_col=label_col_name,
             enable_sparse_data_optim=True,
             missing=0.0,
+            objective=objective,
             **params,  # type: ignore
         )
     elif type == "regression":
@@ -353,6 +481,7 @@ def get_estimator(
             label_col=label_col_name,
             enable_sparse_data_optim=True,
             missing=0.0,
+            objective=objective,
             **params,  # type: ignore
         )
     else:
@@ -578,8 +707,64 @@ def get_features_importance(
 
 # Params Tuning methods
 def tune_parameters(
+    train_df: DataFrame,
+    val_df: DataFrame,
+    params: TunableParams,
+    estimator: Estimator,
+    evaluator: Evaluator,
+) -> Tuple[Params, Transformer]:
+    """Tunes parameters provided testing on validation DataFrame to evalute each
+    configuration. Training of each model is done on training DataFrame
+
+    Hyper-parameters search is performed using grid search, so pay attention to the
+    number of possible options you give to each parameter.
+
+    Args:
+        train_df (DataFrame): DataFrame to be used to train the models.
+        val_df (DataFrame): DataFrame to be used to evaluate the best model.
+        params (TunableParams): dictionary where keys are param names and values are
+            values for the paramter or list of possible values.
+        estimator (Estimator): Estimator/model to fit.
+        evaluator (Evaluator): Evaluator used to score each model.
+
+    Raises:
+        ValueError: if DataFrame is empty.
+
+    Returns:
+        Tuple[Params, Transformer]: Optimal parameters and best trasformer (best already
+            fitted model).
+    """
+    check_not_empty_dataframe(train_df)
+    check_not_empty_dataframe(val_df)
+
+    params_temp = {}
+    for key, value in params.items():
+        if isinstance(value, list):
+            params_temp[key] = value
+        else:
+            params_temp[key] = [value]
+
+    keys, values = zip(*params_temp.items())
+    params_grid = [dict(zip(keys, v)) for v in itertools.product(*values)]
+
+    best_score = -1
+    best_model = None
+    best_params = None
+    for params in params_grid:
+        model = fit(train_df, estimator)
+        model_score = score(val_df, evaluator)
+
+        if model_score > best_score:
+            best_score = model_score  # type: ignore
+            best_model = model
+            best_params = params
+
+    return best_params, best_model  # type: ignore
+
+
+def tune_parameters_cv(
     df: DataFrame,
-    params: Params,
+    params: TunableParams,
     estimator: Estimator,
     evaluator: Evaluator,
     num_folds: int = 3,
@@ -594,8 +779,8 @@ def tune_parameters(
     Args:
         df (DataFrame): DataFrame to be used as train and validation (performing
             splits).
-        params (Params): dictionary where keys are param names and values are values
-            for the paramter or list of possible values.
+        params (TunableParams): dictionary where keys are param names and values are
+            values for the paramter or list of possible values.
         estimator (Estimator): Estimator/model to fit.
         evaluator (Evaluator): Evaluator used to score each model.
         num_folds (int, optional): Number of cross-validation folds. Defaults to 3.
