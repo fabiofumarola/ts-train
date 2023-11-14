@@ -2,7 +2,7 @@ from __future__ import annotations
 import pickle
 from pathlib import Path
 
-from typing import Optional, Union, Literal
+from typing import Optional, Union, Literal, Tuple
 
 from pyspark.sql import SparkSession, DataFrame
 from pyspark.sql import functions as F
@@ -20,7 +20,9 @@ from pydantic.types import StrictStr
 
 from ts_train.ft2model.core import (
     Params,
+    TunableParams,
     tune_parameters,
+    tune_parameters_cv,
     get_estimator,
     get_evaluator,
     fit,
@@ -68,13 +70,11 @@ class TrainingHelper(BaseModel):
     type: Literal["classification", "regression"]
     features_cols_name: list[StrictStr]
     label_col_name: StrictStr
-    params: Optional[Params] = None
     ordered_categ_features_cols_name: Optional[list[StrictStr]] = None
     unordered_categ_features_cols_name: Optional[list[StrictStr]] = None
     num_workers: int = 1
 
     _transformer: Optional[Transformer] = None
-    _best_params: Optional[Params] = None
     _string_indexer_model: Optional[StringIndexerModel] = None
     _one_hot_encoder_model: Optional[OneHotEncoderModel] = None
     _cols_encoding: Optional[dict[str, list[Union[str, int, float]]]] = None
@@ -104,17 +104,161 @@ class TrainingHelper(BaseModel):
             self.params = {}
         self.params["num_workers"] = self.num_workers
 
-    def fit(self, df: DataFrame, metric=None, cv_folds: int = 3) -> Transformer:
+    def fit(self, df: DataFrame, params: Params, objective=None) -> Transformer:
         """Given a DataFrame it fits the model on the features provided in the
         DataFrame.
 
-        If parameters are provided as a dictionary with keys as parameters names and
-        values as list of values of the corresponding parameters the fit method will
-        automatically start a parameters tuning process to choose between the values
-        for the best one. These will be used to fit the best model that will be returned
-
         Args:
             df (DataFrame): DataFrame containing features and target.
+            params (Params): parameters to be passed to the regressor or the classifier.
+            objective (str, optional): Metric to be used to optimize the model and train
+                it. Available options:
+                - Classification: multi:softmax, multi:softprob
+                - Binary classification: binary:logistic, binary:logitraw, binary:hinge
+                - Regression: reg:squarederror, reg:squaredlogerror, reg:logistic,
+                    reg:pseudohubererror, reg:absoluteerror, reg:quantileerror
+                Others could be found here: https://xgboost.readthedocs.io/en/stable/parameter.html#learning-task-parameters
+                Defaults to "multi:softmax" for classification and "reg:squarederror"
+                for regression.
+
+        Raises:
+            ValueError: if params contains list of values instead of a strict value.
+
+        Returns:
+            Transformer: fitted model.
+        """
+        if objective is None:
+            objective = (
+                "multi:softmax" if self.type == "classification" else "reg:squarederror"
+            )
+
+        df = self._preprocess_dataframe(df)
+
+        if not self._are_params_tunable(params):
+            self._estimator = get_estimator(
+                type=self.type,
+                label_col_name=self.label_col_name,
+                objective=objective,
+                params=params,
+            )
+            self._transformer = fit(
+                df=df,
+                estimator=self._estimator,
+            )
+        else:
+            raise ValueError(
+                "params parameters should include strict values, not list."
+            )
+
+        return self._transformer
+
+    def tune(
+        self,
+        train_df: DataFrame,
+        val_df: DataFrame,
+        params: TunableParams,
+        objective=None,
+        metric=None,
+    ):
+        """Given a DataFrame it tunes given params and fits the model on the features
+        provided in the train DataFrame and evaluates different parameters with the
+        validation DataFrame.
+
+        Args:
+            train_df (DataFrame): DataFrame containing features and target. Used to
+                fit the models.
+            val_df (DataFrame): DataFrame used to evaluate different models and return
+                the best one.
+            params (TunableParams): dictionary with keys as regressor or classifier
+                parameters and values as strict values or list of strict values. Values
+                of lists will be tuned.
+            objective (str, optional): Metric to be used to optimize the model and train
+                it. Available options:
+                - Classification: multi:softmax, multi:softprob
+                - Binary classification: binary:logistic, binary:logitraw, binary:hinge
+                - Regression: reg:squarederror, reg:squaredlogerror, reg:logistic,
+                    reg:pseudohubererror, reg:absoluteerror, reg:quantileerror
+                Others could be found here: https://xgboost.readthedocs.io/en/stable/parameter.html#learning-task-parameters
+                Defaults to "multi:softmax" for classification and "reg:squarederror"
+                for regression.
+            metric (str, optional): Metric to be used to evaluate the models trained
+                with different values of the parameters provided. Available options:
+                - Classification: f1, accuracy, weightedPrecision, weightedRecall,
+                    weightedTruePositiveRate, weightedFalsePositiveRate,
+                    weightedFMeasure, truePositiveRateByLabel,
+                    falsePositiveRateByLabel, precisionByLabel, recallByLabel,
+                    fMeasureByLabel, logLoss, hammingLoss.
+                - Binary classification: areaUnderROC, areaUnderPR, and those of the
+                    normal classification.
+                - Regression: rmse, mse, r2, mae, var
+                Defaults to "f1" for classification and "rmse" for regression.
+
+        Returns:
+            Params: parameters used to fit the best performing model considering the
+                chosen metric.
+            Transformer: fitted model with best performance considering the chosen
+                metric.
+        """
+        if objective is None:
+            objective = (
+                "multi:softmax" if self.type == "classification" else "reg:squarederror"
+            )
+        if metric is None:
+            metric = "f1" if self.type == "classification" else "rmse"
+
+        train_df = self._preprocess_dataframe(train_df)
+        val_df = self._preprocess_dataframe(val_df)
+
+        if self._are_params_tunable(params):
+            self._estimator = (
+                get_estimator(
+                    type=self.type,
+                    label_col_name=self.label_col_name,
+                    objective=objective,
+                ),
+            )  # type: ignore
+            best_params, self._transformer = tune_parameters(
+                train_df=train_df,
+                val_df=val_df,
+                params=params,
+                estimator=self._estimator,  # type: ignore
+                evaluator=get_evaluator(
+                    metric=metric, label_col_name=self.label_col_name
+                ),
+            )
+        else:
+            raise ValueError(
+                "params parameters should include at least one list of possible values."
+            )
+
+        return best_params, self._transformer
+
+    def tune_cv(
+        self,
+        df: DataFrame,
+        params: TunableParams,
+        objective=None,
+        metric=None,
+        cv_folds: int = 5,
+    ) -> Tuple[Params, Transformer]:
+        """Given a DataFrame it tunes given params and fits the model on the features
+        provided in the DataFrame using cross validation.
+
+        Args:
+            df (DataFrame): DataFrame containing features and target. It is internally
+                split using cross validation.
+            params (TunableParams): dictionary with keys as regressor or classifier
+                parameters and values as strict values or list of strict values. Values
+                of lists will be tuned.
+            objective (str, optional): Metric to be used to optimize the model and train
+                it. Available options:
+                - Classification: multi:softmax, multi:softprob
+                - Binary classification: binary:logistic, binary:logitraw, binary:hinge
+                - Regression: reg:squarederror, reg:squaredlogerror, reg:logistic,
+                    reg:pseudohubererror, reg:absoluteerror, reg:quantileerror
+                Others could be found here: https://xgboost.readthedocs.io/en/stable/parameter.html#learning-task-parameters
+                Defaults to "multi:softmax" for classification and "reg:squarederror"
+                for regression.
             metric (str, optional): Metric to be used to evaluate the models trained
                 with different values of the parameters provided. Available options:
                 - Classification: f1, accuracy, weightedPrecision, weightedRecall,
@@ -127,42 +271,44 @@ class TrainingHelper(BaseModel):
                 - Regression: rmse, mse, r2, mae, var
                 Defaults to "f1" for classification and "rmse" for regression.
             cv_folds (int, optional): Number of folds used in cross-validation.
-                Defaults to 3.
+                Defaults to 5.
 
         Returns:
-            Transformer: fitted model. In case of parameters tuning with
-                cross-validation the best model is returned.
+            Params: parameters used to fit the best performing model considering the
+                chosen metric.
+            Transformer: fitted model with best performance considering the chosen
+                metric.
         """
+        if objective is None:
+            objective = (
+                "multi:softmax" if self.type == "classification" else "reg:squarederror"
+            )
         if metric is None:
             metric = "f1" if self.type == "classification" else "rmse"
 
         df = self._preprocess_dataframe(df)
 
-        if self._are_params_tunable():
-            self._best_params, self._transformer = tune_parameters(
+        if self._are_params_tunable(params):
+            self._estimator = get_estimator(
+                type=self.type,
+                label_col_name=self.label_col_name,
+                objective=objective,
+            )
+            best_params, self._transformer = tune_parameters_cv(
                 df=df,
-                params=self.params,  # type: ignore
-                estimator=get_estimator(
-                    type=self.type,
-                    label_col_name=self.label_col_name,
-                ),
+                params=params,
+                estimator=self._estimator,
                 evaluator=get_evaluator(
                     metric=metric, label_col_name=self.label_col_name
                 ),
                 num_folds=cv_folds,
             )
         else:
-            self._best_params = self.params
-            self._transformer = fit(
-                df=df,
-                estimator=get_estimator(
-                    type=self.type,
-                    label_col_name=self.label_col_name,
-                    params=self._best_params,
-                ),
+            raise ValueError(
+                "params parameters should include at least one list of possible values."
             )
 
-        return self._transformer
+        return best_params, self._transformer
 
     def predict(self, df: DataFrame) -> DataFrame:
         """It predicts targets provided a DataFrame without a target with the model
@@ -337,15 +483,15 @@ class TrainingHelper(BaseModel):
 
         return training_helper
 
-    def _are_params_tunable(self) -> bool:
+    def _are_params_tunable(self, params) -> bool:
         """ "Checks if the params should be tuned or not.
 
         Returns:
             bool: True if a tuning process has to be done.
         """
-        if self.params is None:
+        if params is None:
             return False
-        for param_value in self.params.values():
+        for param_value in params.values():
             if isinstance(param_value, list):
                 return True
         return False

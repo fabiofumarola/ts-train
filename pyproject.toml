@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "ts-train"
-version = "1.0.2"
+version = "1.1.0"
 description = ""
 authors = ["AGI3YDM <luca.sorrentino@agilelab.it>", "EXTA06F <fabio.vaccaro@agilelab.it>"]
 readme = "README.md"
@@ -16,6 +16,7 @@ tsfresh = "^0.20.1"
 pyarrow = "^13.0.0"
 xgboost = "^2.0.0"
 pyspark = "^3.4.1"
+plotly = "^5.18.0"
 
 [tool.poetry.group.dev]
 optional = true
