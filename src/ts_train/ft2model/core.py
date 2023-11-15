@@ -697,9 +697,9 @@ def get_features_importance(
     for idx, feature_col_name in enumerate(encoded_features_cols_name):
         feature_id = f"f{idx}"
         if feature_id in features_ids_and_importances:
-            features_names_and_importances[feature_col_name] = (
-                features_ids_and_importances[feature_id]
-            )
+            features_names_and_importances[
+                feature_col_name
+            ] = features_ids_and_importances[feature_id]
         else:
             features_names_and_importances[feature_col_name] = 0.0
 
