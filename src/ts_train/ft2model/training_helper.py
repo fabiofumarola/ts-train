@@ -2,11 +2,11 @@ from __future__ import annotations
 import pickle
 from pathlib import Path
 
-from typing import Optional, Union, Literal, Tuple
+from typing import Optional, Union, Literal, Tuple, Any
 
 from pyspark.sql import SparkSession, DataFrame
 from pyspark.sql import functions as F
-from pyspark.ml import Transformer
+from pyspark.ml import Transformer, Estimator
 from pyspark.ml.feature import (
     StringIndexerModel,
     OneHotEncoderModel,
@@ -75,6 +75,7 @@ class TrainingHelper(BaseModel):
     num_workers: int = 1
 
     _transformer: Optional[Transformer] = None
+    _estimator: Optional[Estimator] = None
     _string_indexer_model: Optional[StringIndexerModel] = None
     _one_hot_encoder_model: Optional[OneHotEncoderModel] = None
     _cols_encoding: Optional[dict[str, list[Union[str, int, float]]]] = None
@@ -369,6 +370,46 @@ class TrainingHelper(BaseModel):
             evaluator=get_evaluator(metric=metric, label_col_name=self.label_col_name),
         )
 
+    def get_parameters(
+        self, with_doc: bool = False, with_none=True
+    ) -> Union[
+        dict[
+            str, Union[Union[str, float, int, bool], list[Union[str, float, int, bool]]]
+        ],
+        dict[str, list[Any]],
+    ]:
+        """Extracts parameters from the estimator used the last time to fit or tune the
+        model.
+
+        Args:
+            with_doc (bool, optional): if you want also the documentation of each
+                parameter to be included. Defaults to False.
+            with_none (bool, optional): if you want also to include parameters set to
+                None. Defaults to True.
+
+        Raises:
+            Exception: if no model has been fit or tuned.
+
+        Returns:
+            dict[
+                str,
+                Union[Union[str, float, int, bool], list[Union[str, float, int, bool]]]
+            ]: dictionary with parameter's names as keys and list of paramters value and
+                documentation as values of the dictionary.
+        """
+        if self._estimator:
+            params = {}
+            for param, param_value in self._estimator.extractParamMap().items():
+                if with_doc:
+                    if with_none or (not with_none and param_value is not None):
+                        params[param.name] = [param_value, param.doc]
+                else:
+                    if with_none or (not with_none and param_value is not None):
+                        params[param.name] = param_value
+            return params
+        else:
+            raise Exception("You have to fit or tune a model first.")
+
     def get_feature_importance(self, spark: SparkSession) -> DataFrame:
         """Calculates the importance for the target of each feature used by the model.
 
@@ -411,16 +452,20 @@ class TrainingHelper(BaseModel):
 
         if self._transformer is not None:
             self._transformer.save(str(path_path / "transformer"))  # type: ignore
+        if self._estimator is not None:
+            self._transformer.save(str(path_path / "estimator"))  # type: ignore
         if self._string_indexer_model is not None:
             self._string_indexer_model.save(str(path_path / "string_indexer_model"))
         if self._one_hot_encoder_model is not None:
             self._one_hot_encoder_model.save(str(path_path / "one_hot_encoder_model"))
 
         transformer_temp = self._transformer
+        estimator_temp = self._estimator
         string_indexer_model_temp = self._string_indexer_model
         one_hot_encoder_model_temp = self._one_hot_encoder_model
 
         self._transformer = None
+        self._estimator = None
         self._string_indexer_model = None
         self._one_hot_encoder_model = None
 
@@ -428,6 +473,7 @@ class TrainingHelper(BaseModel):
             pickle.dump(self, f)
 
         self._transformer = transformer_temp
+        self._estimator = estimator_temp
         self._string_indexer_model = string_indexer_model_temp
         self._one_hot_encoder_model = one_hot_encoder_model_temp
 
