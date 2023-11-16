@@ -697,9 +697,9 @@ def get_features_importance(
     for idx, feature_col_name in enumerate(encoded_features_cols_name):
         feature_id = f"f{idx}"
         if feature_id in features_ids_and_importances:
-            features_names_and_importances[
-                feature_col_name
-            ] = features_ids_and_importances[feature_id]
+            features_names_and_importances[feature_col_name] = (
+                features_ids_and_importances[feature_id]
+            )
         else:
             features_names_and_importances[feature_col_name] = 0.0
 
@@ -780,13 +780,20 @@ def tune_parameters(
         )
 
         model = fit(train_df, estimator)
+        val_df = predict(val_df, model)
         model_score = score(val_df, evaluator)
+
+        print(f"Model score: {model_score} with following params:")
+        print(f"    {params}")
 
         if model_score > best_score:
             best_score = model_score  # type: ignore
             best_model = model
             best_estimator = estimator
             best_params = params
+
+    print(f"BEST Model score: {best_score} with following params:")
+    print(f"    {best_params}")
 
     return best_params, best_model, best_estimator  # type: ignore
 
