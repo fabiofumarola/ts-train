@@ -1,4 +1,5 @@
 from typing import *
+import os
 
 from pydantic import BaseModel, StrictStr
 from pyspark.sql import SparkSession, DataFrame
@@ -19,7 +20,9 @@ from ts_train.common.utils import (
 
 
 class FeatureCatalog:
-    with open("../../data/features.yml", "r") as file:
+    data_dir = os.path.join(os.path.dirname(__file__), "data")
+    data_path = os.path.join(data_dir, "features.yml")
+    with open(data_path, "r") as file:
         data = yaml.safe_load(file)
 
     @classmethod

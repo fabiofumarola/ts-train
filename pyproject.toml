@@ -1,11 +1,10 @@
 [tool.poetry]
 name = "ts-train"
-version = "1.3.1"
+version = "1.3.2"
 description = ""
 authors = ["AGI3YDM <luca.sorrentino@agilelab.it>", "EXTA06F <fabio.vaccaro@agilelab.it>"]
 readme = "README.md"
 packages = [{include = "ts_train", from = "src"}]
-include = ["data/features.yml"]
 
 [tool.poetry.dependencies]
 python = "^3.9"
