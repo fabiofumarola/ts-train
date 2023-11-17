@@ -1,6 +1,7 @@
 from typing import Union, Tuple, Optional
 import itertools
 import math
+import sys
 
 from pyspark.sql import DataFrame
 from pyspark.sql import functions as F
@@ -766,7 +767,7 @@ def tune_parameters(
     keys, values = zip(*params_temp.items())
     params_grid = [dict(zip(keys, v)) for v in itertools.product(*values)]
 
-    best_score = -1
+    best_score = sys.float_info.max
     best_model = None
     best_estimator = None
     best_params = None
@@ -786,7 +787,7 @@ def tune_parameters(
         print(f"Model score: {model_score} with following params:")
         print(f"    {params}")
 
-        if model_score > best_score:
+        if model_score < best_score:
             best_score = model_score  # type: ignore
             best_model = model
             best_estimator = estimator
