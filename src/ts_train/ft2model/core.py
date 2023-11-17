@@ -715,6 +715,7 @@ def tune_parameters(
     type: str,
     label_col_name: str,
     objective: str,
+    mode: str,
     num_workers: int,
     evaluator: Evaluator,
 ) -> Tuple[Params, Transformer, Estimator]:
@@ -742,6 +743,8 @@ def tune_parameters(
             Others could be found here: https://xgboost.readthedocs.io/en/stable/parameter.html#learning-task-parameters
             Defaults to "multi:softmax" for classification and "reg:squarederror"
             for regression.
+        mode (str): "min" or "max". If you have accuracy you would like to maximize
+            the metric, so you would use "max".
         num_workers (int): How many XGBoost workers to be used to train. Each XGBoost
             worker corresponds to one spark task. It can be also provided in the params
             dictionary. This parameter overwrites the params dictionary.
@@ -749,6 +752,7 @@ def tune_parameters(
 
     Raises:
         ValueError: if DataFrame is empty.
+        ValueError: if mode parameter is different from "min" or "max".
 
     Returns:
         Tuple[Params, Transformer]: Optimal parameters and best trasformer (best already
@@ -767,10 +771,16 @@ def tune_parameters(
     keys, values = zip(*params_temp.items())
     params_grid = [dict(zip(keys, v)) for v in itertools.product(*values)]
 
-    best_score = sys.float_info.max
+    if mode == "min":
+        best_score = sys.float_info.max
+    elif mode == "max":
+        best_score = -1
+    else:
+        raise ValueError("mode parameter should be min (minimize) or max (maximize).")
     best_model = None
     best_estimator = None
     best_params = None
+
     for params in params_grid:
         estimator = get_estimator(
             type=type,
@@ -787,7 +797,9 @@ def tune_parameters(
         print(f"Model score: {model_score} with following params:")
         print(f"    {params}")
 
-        if model_score < best_score:
+        if (mode == "min" and model_score < best_score) or (
+            mode == "max" and model_score > best_score
+        ):
             best_score = model_score  # type: ignore
             best_model = model
             best_estimator = estimator
