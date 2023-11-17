@@ -1,0 +1,737 @@
+features:
+- description: Indica la percentuale di valori nella serie temporale che sono superiori
+    a una soglia specificata t.
+  name: count_above(x, t)
+  parameters:
+  - description: valore di soglia oltre cui (compreso il valore stesso) i dati vengono
+      conteggiati.
+    name: t
+  tags:
+  - conteggio
+  when: Può essere utilizzata per individuare anomalie o comportamenti inaspettati
+    nella serie temporale.
+- description: Indica il numero di valori nella serie temporale che sono superiori
+    alla media della serie stessa.
+  details: Questo valore rappresenta quanti punti dati nella serie superano la loro
+    media.
+  name: count_above_mean(x)
+  tags:
+  - conteggio
+  when: 'Rilevamento di picchi: Puoi utilizzare questa feature per identificare i
+    picchi nella serie temporale. Se il numero di punti sopra la media è insolitamente
+    alto, potrebbe indicare la presenza di picchi o outlier nei dati. Un altro esempio
+    di utilizzo è l'' analisi della volatilità.'
+- description: Indica la percentuale di valori nella serie temporale che sono inferiori
+    a una soglia specificata t.
+  name: count_below(x, t)
+  parameters:
+  - description: valore di soglia sotto il quale (compreso il valore stesso) i dati
+      vengono conteggiati.
+    name: t
+  tags:
+  - conteggio
+  when: 'Rilevamento delle valli: Puoi utilizzare questa feature per identificare
+    i picchi nella serie temporale. Se il numero di punti sopra la media è insolitamente
+    alto, potrebbe indicare la presenza di picchi o outlier nei dati. Un altro esempio
+    di utilizzo è l'' analisi della volatilità.'
+- description: Indica il numero di valori nella serie temporale che sono inferiori
+    alla media della serie stessa.
+  details: Questo valore rappresenta quanti punti dati nella serie non superano la
+    loro media.
+  name: count_below_mean(x)
+  tags:
+  - conteggio
+  when: Fornisce un'indicazione sulla frequenza con cui i dati si discostano dalla
+    loro media.
+- description: Indica quanti valori nella serie temporale si trovano all'interno di
+    un intervallo specificato, inclusivo del limite inferiore ma esclusivo del limite
+    superiore.
+  details: Questo valore rappresenta il numero di punti dati nella serie che cadono
+    all'interno dell'intervallo specificato.
+  name: range_count(x, min, max)
+  parameters:
+  - description: limite inferiore dell'intervallo (incluso)
+    name: min
+  - description: limite superiore dell'intervallo (escluso).
+    name: max
+  tags:
+  - conteggio
+  when: 'Filtraggio dei dati: Puoi utilizzare questa feature per estrarre o filtrare
+    punti dati che rientrano in un intervallo desiderato.
+
+    Segmentazione dei dati: Questa feature può essere utilizzata per suddividere la
+    serie temporale in diversi segmenti o categorie in base all''intervallo specificato.'
+- description: Indica il numero di picchi nella serie temporale, dove un picco è definito
+    come un valore nella serie che è più grande di almeno n dei suoi vicini a sinistra
+    e a destra.
+  details: Questo valore rappresenta quanti punti dati nella serie mostrano una variazione
+    significativa rispetto ai loro vicini immediati.
+  name: number_peaks(x, n)
+  parameters:
+  - description: rappresenta il supporto del picco. Un picco è un valore che è più
+      grande di almeno n dei suoi vicini a sinistra e a destra nella serie. Un valore
+      più alto di n richiede che il picco abbia un supporto maggiore, cioè deve essere
+      significativamente più grande dei suoi vicini immediati sia a sinistra che a
+      destra.
+    name: n
+  tags:
+  - conteggio
+  when: 'Rilevamento di anomalie: Questa feature può essere utile per il rilevamento
+    di anomalie. Se il numero di picchi è significativamente diverso da quanto ci
+    si aspetterebbe, potrebbe essere un segno di anomalie o problemi nella serie temporale.'
+- description: Indica il numero di attraversamenti nella serie temporale rispetto
+    al valore m.
+  details: Un attraversamento è definito come due valori sequenziali in cui il primo
+    valore è inferiore a m e il successivo è superiore, o viceversa. Se imposti m
+    a zero, otterrai il numero di attraversamenti attraverso lo zero nella serie.
+  name: number_crossing_m(x, m)
+  parameters:
+  - description: rappresenta la soglia per l'attraversamento.
+    name: m
+  tags:
+  - conteggio
+  when: Utilizzi questa feature quando vuoi analizzare la linearità della serie
+- description: Indica quante volte il valore specificato value appare nella serie
+    temporale.
+  name: value_count(x, value)
+  parameters:
+  - description: valore del numero da contare all'interno della serie.
+    name: value
+  tags:
+  - conteggio
+  when: Questa feature si calcola quando si cerca un evento specifico
+- description: Indica la somma dei valori nella serie temporale.
+  details: Questo valore rappresenta l'ammontare complessivo dalla serie temporale.
+  name: sum_values(x)
+  tags:
+  - statistica di base
+- description: Indica il valore assoluto più alto nella serie temporale.
+  details: Questo valore rappresenta l'ampiezza massima dei dati nella serie temporale,
+    ignorando la loro direzione (positiva o negativa)
+  name: absolute_maximum(x)
+  tags:
+  - statistica di base
+- description: Indica la lunghezza della serie temporale.
+  details: Questo valore rappresenta la dimensione complessiva della serie temporale,
+    indicando quanti punti dati sono stati registrati nel periodo specificato.
+  name: length(x)
+  tags:
+  - statistica di base
+- description: Indica la posizione normalizzata (relativa rispetto alla lunghezza
+    della serie temporale) del primo valore massimo nella serie.
+  name: first_location_of_maximum(x)
+  tags:
+  - statistica di base
+  when: Utilizzando questa feature, puoi determinare a quale punto temporale il valore
+    ha raggiunto il suo primo picco massimo nel periodo osservato.
+- description: Indica la posizione normalizzata (relativa rispetto alla lunghezza
+    della serie temporale) dell'ultimo valore massimo nella serie.
+  name: last_location_of_maximum(x)
+  tags:
+  - statistica di base
+  when: Utilizzando questa feature, puoi determinare a quale punto temporale il valore
+    ha raggiunto il suo ultimo picco massimo nel periodo osservato.
+- description: Indica la posizione normalizzata (relativa rispetto alla lunghezza
+    della serie temporale) del primo valore minimo nella serie.
+  name: first_location_of_minimum(x)
+  tags:
+  - statistica di base
+  when: Utilizzando questa feature, puoi determinare a quale punto temporale il valore
+    ha raggiunto il suo primo picco minimo nel periodo osservato.
+- description: Indica la posizione normalizzata (relativa rispetto alla lunghezza
+    della serie temporale) dell'ultimo valore minimo nella serie.
+  name: last_location_of_minimum(x)
+  tags:
+  - statistica di base
+  when: Utilizzando questa feature, puoi determinare a quale punto temporale il valore
+    ha raggiunto il suo ultimo picco minimo nel periodo osservato.
+- description: Indica la media dei valori nella serie temporale.
+  details: Questo fornisce un valore numerico rappresentativo del livello medio della
+    serie nel tempo.
+  name: mean(x)
+  tags:
+  - statistica di base
+- description: Indica il valore mediano della serie temporale, cioè il valore centrale
+    quando i dati sono ordinati in modo crescente.
+  details: Questo valore rappresenta il punto medio dei dati, separando la metà inferiore
+    dalla metà superiore della serie.
+  name: median(x)
+  tags:
+  - statistica di base
+  when: Puoi ottenere il valore in cui metà degli utenti ha un valore minore e metà
+    degli utenti ha un valore maggiore.
+- description: Indica il valore minimo nella serie temporale, cioè il valore più basso
+    presente nei dati.
+  details: Questo valore fornisce un'indicazione diretta del punto più basso raggiunto
+    dalla serie temporale.
+  name: minimum(x)
+  tags:
+  - statistica di base
+- description: Indica il quantile q di una serie temporale, rappresentando il valore
+    che è superato dal q% dei valori ordinati dalla serie.
+  name: quantile(x, q)
+  parameters:
+  - description: valore tra 0 e 1 del quantile da calcolare.
+    name: q
+  tags:
+  - statistica di base
+- description: Indica la radice quadrata della media dei quadrati dei valori nella
+    serie temporale.
+  details: Questo valore rappresenta una misura della grandezza media dei dati nella
+    serie, prendendo in considerazione sia i valori positivi che quelli negativi.
+  name: root_mean_square(x)
+  tags:
+  - statistica di base
+  when: Utilizzando questa feature, puoi determinare un indicatore della potenza complessiva
+    delle valore nel tempo. Un valore RMS più alto potrebbe indicare valori più altri
+    (sia in positivo che in negativo).
+- description: Indica la deviazione standard della serie temporale.
+  details: Questo valore rappresenta una misura di quanto i valori nella serie si
+    discostano dalla loro media.
+  name: standard_deviation(x)
+  tags:
+  - statistica di base
+  when: Questo valore fornisce un'indicazione sulla dispersione dei dati rispetto
+    alla loro media.
+- description: Indica la varianza della serie temporale.
+  details: Questo valore rappresenta una misura di quanto i valori nella serie si
+    discostano dalla loro media.
+  name: variance(x)
+  tags:
+  - statistica di base
+  when: Questo valore fornisce un'indicazione sulla dispersione dei dati rispetto
+    alla loro media
+- description: Indica il rapporto tra il numero di valori unici e il numero totale
+    di valori nella serie.
+  details: Il valore è 1 se tutti i valori nella serie temporale compaiono solo una
+    volta e inferiore a 1 se ciò non è il caso.
+  name: ratio_value_number_to_time_series_length(x)
+  tags:
+  - ridondanza della serie
+  when: Da utilizzare su variabili discrete per capire la diversificazione dei valori
+- description: Indica la somma di tutti i valori presenti nella serie temporale che
+    compaiono più di una volta.
+  details: In altre parole, somma tutti i valori che sono reoccurring (ricorrenti)
+    nella serie temporale.
+  name: sum_of_reoccurring_values(x)
+  tags:
+  - ridondanza della serie
+- description: Indica la percentuale di punti dati non unici nella serie temporale.
+  details: I punti dati non unici sono quelli che compaiono più di una volta nella
+    serie temporale. La feature calcola il rapporto tra il numero di punti dati che
+    si ripetono (ricorrenti) e il numero totale di punti dati nella serie temporale.
+  name: percentage_of_reoccurring_datapoints_to_all_datapoints(x)
+  tags:
+  - ridondanza della serie
+- description: Indica se ci sono valori nella serie temporale che compaiono più di
+    una volta.
+  details: Restituisce True se ci sono duplicati nella serie temporale, altrimenti
+    restituisce False.
+  name: has_duplicate(x)
+  tags:
+  - ridondanza della serie
+- description: Indica se il valore massimo nella serie temporale appare più di una
+    volta.
+  details: Restituisce True se il valore massimo è osservato più di una volta nella
+    serie, altrimenti restituisce False.
+  name: has_duplicate_max(x)
+  tags:
+  - ridondanza della serie
+  when: 'Rilevamento di Eventi Ripetuti: In alcune applicazioni, potrebbe essere necessario
+    rilevare eventi specifici che si ripetono. La feature può essere utilizzata per
+    identificare se il massimo valore della serie si verifica più di una volta, il
+    che potrebbe rappresentare un evento ripetuto di interesse.'
+- description: Determina se la distribuzione di una serie temporale è simmetrica.
+  details: Aiuta a capire se i dati sono distribuiti uniformemente da entrambi i lati
+    rispetto al valore mediano. Il risultato è binario.
+  name: symmetry_looking(x, param)
+  parameters:
+  - description: indica quale percentuale dell'ampiezza totale della distribuzione
+      dei dati deve essere considerata per valutare se la distribuzione è simmetrica
+      o meno. Modificando questo valore r puoi regolare la sensibilità del criterio
+      di simmetria.
+    name: r
+  tags:
+  - statistica medie
+  when: Da utilizzare per identificare la presenza di outliers.
+- description: Aiuta a capire quanto siano diversi i numeri nella serie tra loro.
+  details: Se ci sono molte differenze, la funzione restituisce "True".
+  name: variance_larger_than_standard_deviation(x)
+  tags:
+  - statistica medie
+  when: Da utilizzare per identificare la presenza di outliers.
+- description: Calcola l'asimmetria di una serie temporale, descrivendo la forma della
+    distribuzione dei dati.
+  details: Il segno di questo indicatore indica la direzione dello sbilanciamento
+    dei valori. Se la skewness è zero, i dati sono perfettamente simmetrici attorno
+    alla loro media. Se la skewness è positiva, significa che la distribuzione ha
+    una coda più lunga a destra. Se è negativa, la distribuzione ha una coda più lunga
+    a sinistra.
+  name: skewness(x)
+  tags:
+  - statistica medie
+  when: Da utilizzare per identificare la presenza di outliers.
+- description: Questa misura quantifica l'ampiezza totale dei dati nella serie temporale,
+    ignorando la direzione del cambiamento.
+  details: Fornisce una misura della distanza da 0, sia in positivo che in negativo,
+    dei punti della serie temporale.
+  name: abs_energy(x)
+  tags:
+  - statistica medie
+  when: 'Caratterizzazione della Serie Temporale: L''assorbimento di energia fornisce
+    una misura sintetica delle caratteristiche della serie temporale. '
+- description: Questo valore riflette la tendenza di cambiamento nell'andamento della
+    serie nel tempo.
+  details: Un valore positivo indica un aumento continuo nei valori, mentre un valore
+    negativo potrebbe suggerire una riduzione nella crescita delle dei valori nel
+    tempo.
+  name: mean_second_derivative_central(x)
+  tags:
+  - statistica medie
+  when: Da utilizzare per catturare il trend della serie temporale.
+- description: Calcola i coefficienti di Fourier della Trasformata di Fourier.
+  details: Questi coefficienti rappresentano la decomposizione della serie temporale
+    in componenti di diverse frequenze, rivelando la struttura ciclica dei dati.
+  name: fft_coefficient(x, param)
+  tags:
+  - statistica medie
+  when: Questa feature può aiutare a identificare modelli ciclici nelle serie temporali.
+- description: Questa funzione calcola il coefficiente di un processo AutoRegressivo
+    (AR) di ordine "k" in una serie temporale.
+  details: Un processo AR è un modello matematico che descrive come i valori passati
+    di una serie temporale influenzano il valore corrente. Questa feature calcola
+    i coefficienti di un processo AR di ordine "k" utilizzando la massima verosimiglianza
+    incondizionata.
+  name: ar_coefficient(x, param)
+  parameters:
+  - description: ordine del processo AR.
+    name: k
+  - description: coefficienti specifici desiderati.
+    name: coeff
+  tags:
+  - rilevamento pattern
+  when: Può essere utilizzata per identificare pattern o trend all'interno dei dati.
+- description: Questa funzione calcola il valore della funzione di autocorrelazione
+    parziale a un determinato ritardo (lag).
+  details: L'autocorrelazione parziale a lag k di una serie temporale è la correlazione
+    parziale tra il valore corrente e il valore alla distanza k, tenendo conto delle
+    variabili intermedie tra di loro.
+  name: partial_autocorrelation(x, param)
+  parameters:
+  - description: ritardo specifico per cui calcolare l'autocorrelazione parziale.
+    name: lag
+  tags:
+  - rilevamento pattern
+  when: Questa feature è utile per determinare il ritardo (lag) di un processo AutoRegressivo
+    (AR). È spesso utilizzata nell'analisi delle serie temporali per identificare
+    la struttura dell'autocorrelazione nei dati.
+- description: Questa funzione calcola l'entropia di permutazione di una serie temporale.
+  details: L'entropia di permutazione è una misura di complessità che valuta quanto
+    una serie temporale sia disordinata. Per calcolarla, la serie viene suddivisa
+    in sottofinestre di lunghezza dimension che iniziano ogni tau. Ogni sottofinestra
+    viene quindi trasformata in una permutazione che rappresenta l'ordinamento delle
+    osservazioni. Infine, vengono conteggiate le frequenze di ciascuna permutazione
+    e calcolata l'entropia delle frequenze.
+  name: permutation_entropy(x, tau, dimension)
+  parameters:
+  - description: la distanza tra le sottofinestre.
+    name: tau
+  - description: la lunghezza delle sottofinestre e il numero di osservazioni in ciascuna
+      permutazione.
+    name: dimension
+  tags:
+  - rilevamento pattern
+  when: Questa feature è utile per valutare la complessità di una serie temporale,
+    ad esempio, per identificare pattern o irregolarità nei dati.
+- description: Questa funzione calcola la densità spettrale di spettro di potenza
+    di Welch di una serie temporale a diverse frequenze.
+  details: La densità spettrale di spettro di potenza di Welch è una misura che stima
+    la densità spettrale di potenza di una serie temporale a diverse frequenze. Per
+    farlo, la serie temporale viene trasformata dal dominio del tempo al dominio delle
+    frequenze. La funzione restituisce lo spettro di potenza alle diverse frequenze
+    specificate.
+  name: spkt_welch_density(x, param)
+  parameters:
+  - description: intero che rappresenta i coefficienti da calcolare.
+    name: coeff
+  tags:
+  - rilevamento pattern
+  when: È spesso utilizzata nell'analisi delle serie temporali per identificare pattern
+    o cambiamenti nelle frequenze dei dati.
+- description: Questa funzione calcola la statistica di asimmetria di inversione temporale
+    di una serie temporale.
+  details: La statistica di asimmetria di inversione temporale è una misura che valuta
+    l'asimmetria dei dati rispetto all'inversione temporale. Questa feature calcola
+    la media di una funzione che coinvolge i dati originali e i dati ritardati di
+    una serie temporale a un dato ritardo (lag).
+  name: time_reversal_asymmetry_statistic(x, lag)
+  parameters:
+  - description: il ritardo (lag) da utilizzare nella funzione di calcolo.
+    name: lag
+  tags:
+  - rilevamento pattern
+  when: Questa feature è utile per rilevare asimmetrie nei dati temporali. Può essere
+    utilizzata per identificare pattern o comportamenti che differiscono quando la
+    serie temporale è invertita nel tempo.
+- description: Questa funzione calcola i coefficienti della Trasformata Wavelet Continua
+    (Continuous Wavelet Transform, CWT) utilizzando la funzione d'onda Ricker, anche
+    conosciuta come "Mexican hat wavelet."
+  details: La Trasformata Wavelet Continua è una tecnica che scompone una serie temporale
+    in componenti di diverse frequenze e ampiezze. Questa funzione calcola la CWT
+    utilizzando diverse larghezze di banda specificate come "widths." Per ogni combinazione
+    di parametri specificata in "param," la CWT viene calcolata e i coefficienti desiderati
+    sono estratti.
+  name: cwt_coefficients(x, param)
+  parameters:
+  - description: le larghezze delle bande.
+    name: widths
+  - description: i coefficienti.
+    name: coeff
+  - description: la larghezza desiderata per l'analisi.
+    name: w
+  tags:
+  - rilevamento pattern
+  when: Questa feature è utile quando si desidera analizzare la serie temporale alla
+    ricerca di componenti di diverse frequenze e ampiezze. Può essere utilizzata per
+    identificare pattern o comportamenti specifici nei dati.
+- description: Questa funzione calcola quanto i valori di una serie temporale sono
+    correlati a una distanza temporale specifica (lag).
+  details: Misura quanto i valori a una certa distanza temporale siano simili tra
+    loro. Utilizza la formula matematica per calcolare questa misura, tenendo conto
+    della lunghezza della serie, della varianza e della media dei dati.
+  name: autocorrelation
+  parameters:
+  - description: la distanza temporale a cui si vuole calcolare l'autocorrelazione.
+    name: lag
+  tags:
+  - rilevamento pattern
+  when: 'Analisi di Trend e Pattern Temporali: Aiuta a identificare pattern, trend
+    o comportamenti ciclici nella serie temporale. Puoi utilizzare questa feature
+    per estrarre informazioni sui rapporti temporali tra i dati.'
+- description: Questa funzione calcola statistiche descrittive per valutare quanto
+    i valori in una serie temporale siano correlati tra loro.
+  details: Misura quanto i valori vicini nella serie temporale siano simili tra loro.
+    Restituisce il risultato di una funzione aggregata (ad esempio, la varianza o
+    la media) calcolata sulla correlazione tra i valori a differenti distanze l'uno
+    dall'altro nella serie.
+  name: agg_autocorrelation
+  parameters:
+  - description: il nome di una funzione matematica da applicare alle correlazioni
+      calcolate (per esempio, "media," "varianza," "deviazione standard," "mediana").
+    name: f_agg
+  - description: specifica la massima distanza tra i punti nella serie temporale da
+      considerare nel calcolo delle correlazioni.
+    name: maxlag
+  - description: la lunghezza massima della serie temporale.
+    name: n
+  tags:
+  - rilevamento pattern
+  when: 'Analisi di Trend e Pattern Temporali: Aiuta a identificare pattern, trend
+    o comportamenti ciclici nella serie temporale. Puoi utilizzare questa feature
+    per estrarre informazioni sui rapporti temporali tra i dati.'
+- description: Questa funzione calcola il cosiddetto "Profilo Matriciale 1-D" di una
+    serie temporale e restituisce diversi valori statistici basati su questo profilo.
+  details: Il Profilo Matriciale 1-D è una misura che aiuta a identificare pattern
+    e strutture ricorrenti all'interno di una serie temporale. Questa feature calcola
+    diversi valori statistici su questo profilo per aiutare nell'analisi dei dati
+    temporali.
+  name: matrix_profile(x, param)
+  parameters:
+  - description: per il calcolo del Profilo Matriciale, influenzando il processo di
+      analisi.
+    name: sample_pct
+  - description: per il calcolo del Profilo Matriciale, influenzando il processo di
+      analisi.
+    name: threshold
+  - description: specifica il tipo di statistica da calcolare, che può essere "min,"
+      "max," "media," "mediana," "25" (primo quartile) o "75" (terzo quartile).
+    name: feature
+  tags:
+  - rilevamento pattern
+  when: È utile quando si desidera identificare pattern, trend o relazioni ricorrenti
+    all'interno di una serie temporale. Questi valori statistici possono essere utilizzati
+    per analizzare le caratteristiche dei dati e rilevare eventuali anomalie.
+- description: Questa funzione calcola l'entropia campionaria di una serie temporale.
+  details: L'entropia campionaria è una misura di complessità o disordine in una serie
+    temporale. Essa valuta quanto una sequenza di dati sia simile o dissimile a sequenze
+    più lunghe della stessa serie. In altre parole, misura la probabilità che una
+    sequenza di dati sia seguita da una sequenza simile di dati. L'entropia campionaria
+    può rilevare la presenza di pattern o regolarità nella serie temporale.
+  name: sample_entropy(x)
+  tags:
+  - regolarità delle time series
+  when: Questa feature è utile per valutare la complessità o la regolarità di una
+    serie temporale. Può essere utilizzata per rilevare la presenza di pattern o comportamenti
+    che si ripetono nella serie temporale.
+- description: Questa funzione calcola una statistica denominata "C3" per misurare
+    la non linearità in una serie temporale.
+  details: La "Misura di Non Linearità C3" calcola una statistica basata su una combinazione
+    dei valori nella serie temporale. In particolare, calcola il valore di aspettazione
+    di un'espressione complessa che coinvolge i dati della serie temporale e operatori
+    di ritardo (lag).
+  name: c3(x, lag)
+  parameters:
+  - description: il ritardo (lag) da utilizzare nel calcolo della feature. Specifica
+      di quanti passi temporali indietro guardare nell'analisi.
+    name: lag
+  tags:
+  - regolarità delle time series
+  when: Questa feature è utile quando si desidera valutare il grado di non linearità
+    nella serie temporale. Può essere utilizzata per rilevare modelli non lineari
+    nei dati.
+- description: Questa funzione restituisce un valore booleano che indica se la deviazione
+    standard di una serie temporale è maggiore di "r" volte l'intervallo della serie,
+    dove l'intervallo è la differenza tra il massimo e il minimo valore della serie.
+  details: La deviazione standard è una misura di quanto i dati di una serie temporale
+    siano distribuiti attorno alla media. Questa feature confronta la deviazione standard
+    con una percentuale dell'intervallo della serie. Se la deviazione standard è maggiore
+    del prodotto di "r" e l'intervallo, allora restituirà True, altrimenti restituirà
+    False. Questo può essere utilizzato per valutare se la variazione dei dati nella
+    serie è "grande" rispetto all'intervallo.
+  name: large_standard_deviation(x, r)
+  parameters:
+  - description: il moltiplicatore che determina quanto grande deve essere la deviazione
+      standard rispetto all'intervallo. Un valore maggiore di "r" richiederà una maggiore
+      variabilità nei dati per restituire True.
+    name: r
+  tags:
+  - regolarità delle time series
+  when: Questa feature è utile per determinare se una serie temporale ha una variazione
+    significativa rispetto al suo intervallo. Ad esempio, potrebbe essere utilizzata
+    per identificare serie con dati molto dispersi rispetto al loro range.
+- description: Questa funzione calcola il kurtosis (indice di curtosi) di una serie
+    temporale "x" per valutare la forma della distribuzione dei dati. Il kurtosis
+    misura la coda delle code (pesante o leggera) e l'apice (alto o basso) della distribuzione
+    rispetto a una distribuzione normale.
+  details: Il kurtosis è un indicatore statistico che misura quanto le code di una
+    distribuzione di dati siano pesanti (positivo) o leggere (negativo) rispetto a
+    una distribuzione normale. Un valore di kurtosis maggiore di zero indica code
+    più pesanti rispetto a una distribuzione normale, mentre un valore di kurtosis
+    inferiore a zero indica code più leggere. Un valore di kurtosis uguale a zero
+    indica una distribuzione simile a una normale.
+  name: kurtosis(x)
+  tags:
+  - regolarità delle time series
+  when: Il kurtosis è utile per valutare la forma della distribuzione dei dati in
+    una serie temporale. Ad esempio, può aiutare a identificare se la serie ha code
+    pesanti o leggere, il che potrebbe influire sulla scelta di modelli statistici
+    o tecniche di analisi dei dati.
+- description: Questa funzione calcola la media delle differenze assolute tra i valori
+    successivi in una serie temporale "x".
+  details: La media delle variazioni assolute è una misura della variazione media
+    tra i punti di dati consecutivi nella serie temporale. Per calcolare questa feature,
+    si calcola la differenza assoluta tra ogni valore e il suo successivo, quindi
+    si calcola la media di queste differenze assolute. Questa feature è utile per
+    valutare quanto i valori nella serie varino di media tra un passo temporale e
+    il successivo.
+  name: mean_abs_change(x)
+  tags:
+  - regolarità delle time series
+  when: Questa feature è utile quando si desidera misurare la variabilità media tra
+    i punti di dati consecutivi in una serie temporale. Ad esempio, potrebbe essere
+    utilizzata per valutare la stabilità o la fluttuazione media dei dati nel tempo.
+- description: Questa funzione calcola la media delle variazioni tra i valori successivi
+    nella serie temporale.
+  details: La "Media delle Variazioni" misura la media delle differenze tra i valori
+    successivi nella serie temporale. Calcola la media delle variazioni tra i valori
+    successivi, cioè quanto in media cambiano i dati tra due punti consecutivi.
+  name: mean_change(x)
+  tags:
+  - regolarità delle time series
+  when: Questa feature è utile quando si desidera calcolare l'andamento medio delle
+    variazioni nei dati nel tempo. Può essere utilizzata per valutare l'evoluzione
+    media dei dati nella serie temporale.
+- description: Questa funzione calcola la somma dei valori assoluti delle variazioni
+    consecutive nella serie temporale.
+  details: La "Somma delle Variazioni Assolute" misura quanto cambiano i valori consecutivi
+    nella serie temporale. Calcola la somma dei valori assoluti delle differenze tra
+    ciascun valore e il successivo.
+  name: absolute_sum_of_changes(x)
+  tags:
+  - regolarità delle time series
+  when: Questa feature è utile quando si desidera misurare la quantità complessiva
+    di cambiamenti nei dati della serie temporale. Può essere utile per valutare la
+    variabilità dei dati nel tempo.
+- description: Questa funzione calcola un valore di entropia basato sulla suddivisione
+    dei valori di una serie temporale in un numero specifico di "bins" (intervalli).
+  details: La "Entropia Basata su Bins" calcola quanto sia disordinata o casuale una
+    serie temporale dopo aver suddiviso i valori in un numero specifico di intervalli
+    (bins). Il calcolo utilizza la distribuzione dei dati nei bin per misurare l'entropia.
+  name: binned_entropy(x, max_bins)
+  parameters:
+  - description: il numero massimo di intervalli in cui suddividere i dati.
+    name: max_bins
+  tags:
+  - regolarità delle time series
+  when: 'Anomalia Detection: L''entropia basata su bins potrebbe essere utilizzata
+    nel rilevamento di anomalie. Se la serie temporale è solitamente stabile con un
+    basso valore di entropia e improvvisamente mostra un aumento significativo, potrebbe
+    essere un segnale di un comportamento anomalo o inaspettato.
+
+
+    Caratterizzazione della Stazionarietà: L''entropia basata su bins potrebbe essere
+    utilizzata per valutare la stazionarietà di una serie temporale. Se la serie è
+    stazionaria, ci si aspetterebbe che l''entropia rimanga costante nel tempo. Variazioni
+    significative potrebbero suggerire non stazionarietà.'
+- description: Questa funzione calcola la variazione media all'interno di una "corridor"
+    (corridoio) definita dai quantili di una serie temporale. La variazione rappresenta
+    quanto cambiano i dati all'interno di questo intervallo specifico.
+  details: La feature inizia per definire un "corridoio" all'interno della distribuzione
+    dei dati, specificato dai quantili bassi (ql) e alti (qh). Quindi, calcola la
+    variazione media tra i cambiamenti consecutivi nei dati all'interno di questo
+    corridoio.
+  name: change_quantiles(x, ql, qh, isabs, f_agg)
+  parameters:
+  - description: il quantile inferiore che definisce il limite inferiore del corridoio.
+    name: ql
+  - description: il quantile superiore che definisce il limite superiore del corridoio.
+    name: qh
+  - description: un parametro booleano che specifica se dovrebbero essere prese le
+      differenze in valore assoluto tra i dati.
+    name: isabs
+  - description: la funzione aggregatrice che viene applicata alle differenze all'interno
+      del corridoio. Può essere "media," "varianza," "deviazione standard," "mediana,"
+      ecc.
+    name: f_agg
+  tags:
+  - regolarità delle time series
+  when: uesta feature è utile quando si desidera misurare quanto cambiano i dati all'interno
+    di un intervallo specifico nella serie temporale. Può essere utile per comprendere
+    quanto variabilità c'è all'interno di un intervallo di dati ristretto.
+- description: Questa funzione calcola una stima della complessità di una serie temporale.
+    Misura quanto una serie sia complessa, tenendo conto di picchi e valli nei dati.
+  details: La "Complessità di una Serie Temporale" è una misura che riflette quanto
+    una serie abbia picchi e valli nei dati. Maggiore è la complessità, maggiore è
+    il numero di cambiamenti significativi nei dati. Il calcolo coinvolge la somma
+    dei quadrati delle differenze tra punti consecutivi nella serie.
+  name: cid_ce(x, normalize)
+  parameters:
+  - description: questo parametro indica se la serie dovrebbe essere trasformata tramite
+      z-score (z-normalizzata) prima del calcolo. Questa normalizzazione può aiutare
+      a comparare serie con variazioni di scala diverse.
+    name: normalize
+  tags:
+  - regolarità delle time series
+  when: Questa feature è utile quando si desidera valutare la complessità dei dati
+    temporali. Può essere applicata per identificare serie con molte variazioni e
+    cambiamenti, ad esempio, per rilevare pattern o comportamenti irregolari.
+- description: È un indicatore di quanto una serie sia caotica o regolare.
+  details: L'Entropia Approssimata misura quanto sia imprevedibile una serie temporale.
+    Più alta è l'entropia approssimata, più caotica è la serie.
+  name: approximate_entropy(x, m, r)
+  parameters:
+  - description: la lunghezza della sequenza di dati da confrontare. Maggiore è m,
+      maggiore è la complessità del confronto.
+    name: m
+  - description: il livello di filtraggio, che deve essere un valore positivo. Questo
+      parametro influenza la tolleranza nei confronti dei dati.
+    name: r
+  tags:
+  - regolarità delle time series
+  when: Questa feature è utile quando si vuole valutare il grado di complessità o
+    caoticità di una serie temporale. Può essere applicata in diverse aree, come l'analisi
+    delle serie storiche o la rilevazione di modelli complessi nei dati temporali.
+- description: Questa funzione calcola una stima della complessità di una serie temporale
+    utilizzando l'algoritmo di compressione Lempel-Ziv.
+  details: La complessità Lempel-Ziv è una misura della quantità di informazione richiesta
+    per codificare una serie temporale. Per calcolarla, la serie temporale viene prima
+    suddivisa in un numero specifico di "bins" (intervalli), quindi viene convertita
+    in sotto-parole con prefissi diversi. La complessità è quindi calcolata come il
+    rapporto tra il numero di sotto-parole richieste per codificare la serie e la
+    lunghezza della serie stessa.
+  name: lempel_ziv_complexity(x, bins)
+  parameters:
+  - description: il numero di intervalli in cui la serie temporale viene suddivisa
+      prima di calcolare la complessità.
+    name: bins
+  tags:
+  - regolarità delle time series
+  when: Questa feature è utile quando si desidera misurare la complessità intrinseca
+    di una serie temporale, ossia quanto è difficile da rappresentare o codificare.
+    Può essere utilizzata in una varietà di contesti, ad esempio nell'analisi delle
+    serie temporali o nella classificazione delle serie temporali.
+- description: Calcola una regressione lineare dei valori della serie temporale che
+    sono stati aggregati su chunk tramite una funzione di aggrefazione fornita come
+    input. I parametri controllano quali caratteristiche vengono restituite.
+  details: È possibile specificare l'attributo da estrarre dalla regressione lineare,
+    come ad esempio "pvalue", "rvalue", "intercept", "slope" o "stderr".
+  name: 'agg_linear_trend(x, param): '
+  parameters:
+  - description: rappresenta l'attributo da estrarre dalla regressione lineare ("pvalue",
+      "rvalue", "intercept", "slope", "stderr").
+    name: attr
+  - description: specifica quanti valori della serie temporale sono presenti in ciascun
+      chunk.
+    name: chunk_len
+  - description: specifica la funzione di aggregazione da utilizzare per aggregare
+      i valori all'interno di ciascun chunk ("max", "min", "mean", "median").
+    name: f_agg
+  tags:
+  - trend
+  when: Utilizzabile per scoprire se la serie segue un trend lineare, la divisione
+    in chunks permette ad esempio di fare kpi sulla stagionalità
+- description: Calcola una regressione lineare per i valori della serie temporale
+    rispetto alla sequenza da 0 a lunghezza della serie temporale meno uno.
+  details: È possibile specificare l'attributo da estrarre dalla regressione lineare,
+    come ad esempio "pvalue", "rvalue", "intercept", "slope" o "stderr".
+  name: linear_trend(x, param)
+  parameters:
+  - description: rappresenta l'attributo da estrarre dalla regressione lineare ("pvalue",
+      "rvalue", "intercept", "slope", "stderr").
+    name: attr
+  - description: specifica quanti valori della serie temporale sono presenti in ciascun
+      chunk.
+    name: chunk_len
+  - description: specifica la funzione di aggregazione da utilizzare per aggregare
+      i valori all'interno di ciascun chunk ("max", "min", "mean", "median").
+    name: f_agg
+  tags:
+  - trend
+  when: Utilizzabile per scoprire se la serie segue un trend lineare
+- description: Indica la lunghezza della sequenza consecutiva più lunga nella serie
+    temporale in cui i valori sono superiori alla media della serie stessa.
+  name: longest_strike_above_mean(x)
+  tags:
+  - trend
+  when: 'Analisi della Persistenza di Trend: Identificare il periodo più lungo in
+    cui i valori rimangono costantemente al di sotto della media può rivelare la presenza
+    di un trend negativo o una fase di declino nella serie temporale.'
+- description: Indica la lunghezza della sequenza consecutiva più lunga nella serie
+    temporale in cui i valori sono inferiori alla media della serie stessa.
+  name: longest_strike_below_mean(x)
+  tags:
+  - trend
+  when: 'Analisi della Persistenza di Trend: Identificare il periodo più lungo in
+    cui i valori rimangono costantemente al di sotto della media può rivelare la presenza
+    di un trend negativo o una fase di declino nella serie temporale.'
+- description: Verifica se una serie temporale è stazionaria (le sue proprietà statistiche,
+    come la media e la varianza, rimangono costanti nel tempo). Restituisce il valore
+    della statistica di test in base al parametro inviato
+  name: augmented_dickey_fuller(x, param)
+  parameters:
+  - description: può assumere valori come "teststat" (statistica del test), "pvalue"
+      (valore p del test) o "usedlag" (numero di ritardi utilizzati nel test).
+    name: attr
+  - description: specifica il criterio di selezione automatica del numero di ritardi
+      e può assumere valori come "AIC" (criterio di informazione di Akaike), "BIC"
+      (criterio di informazione bayesiano) o None.
+    name: autolag
+  tags:
+  - trend
+  when: Utilizzabile per scoprire la stazionarietà della serie temporale nel contesto
+    di rilevamento di eventuali trend
+tags:
+- description: ''
+  name: rilevamento pattern
+- description: ''
+  name: ridondanza della serie
+- description: ''
+  name: regolarità delle time series
+- description: ''
+  name: conteggio
+- description: ''
+  name: statistica medie
+- description: ''
+  name: statistica di base
+- description: ''
+  name: trend
