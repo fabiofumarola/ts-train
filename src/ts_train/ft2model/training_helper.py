@@ -158,8 +158,9 @@ class TrainingHelper(BaseModel):
         train_df: DataFrame,
         val_df: DataFrame,
         params: TunableParams,
-        objective=None,
-        metric=None,
+        objective: Optional[str] = None,
+        metric: Optional[str] = None,
+        mode: Optional[str] = None,
     ):
         """Given a DataFrame it tunes given params and fits the model on the features
         provided in the train DataFrame and evaluates different parameters with the
@@ -193,6 +194,9 @@ class TrainingHelper(BaseModel):
                     normal classification.
                 - Regression: rmse, mse, r2, mae, var
                 Defaults to "f1" for classification and "rmse" for regression.
+            mode (str): "min" or "max". If you have accuracy you would like to maximize
+                the metric, so you would use "max". If metrix is "f1" it maximses it,
+                otherwise it minimize the metric.Default "min".
 
         Returns:
             Params: parameters used to fit the best performing model considering the
@@ -206,6 +210,11 @@ class TrainingHelper(BaseModel):
             )
         if metric is None:
             metric = "f1" if self.type == "classification" else "rmse"
+        if mode is None:
+            if metric == "f1":
+                mode = "max"
+            else:
+                mode = "min"
 
         train_df = self._preprocess_dataframe(train_df)
         val_df = self._preprocess_dataframe(val_df)
@@ -218,6 +227,7 @@ class TrainingHelper(BaseModel):
                 type=self.type,
                 label_col_name=self.label_col_name,
                 objective=objective,
+                mode=mode,
                 num_workers=self.num_workers,
                 evaluator=get_evaluator(
                     metric=metric, label_col_name=self.label_col_name
@@ -370,9 +380,7 @@ class TrainingHelper(BaseModel):
             evaluator=get_evaluator(metric=metric, label_col_name=self.label_col_name),
         )
 
-    def get_parameters(
-        self, with_doc: bool = False, with_none=True
-    ) -> Union[
+    def get_parameters(self, with_doc: bool = False, with_none=True) -> Union[
         dict[
             str, Union[Union[str, float, int, bool], list[Union[str, float, int, bool]]]
         ],
