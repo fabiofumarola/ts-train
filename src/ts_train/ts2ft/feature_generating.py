@@ -8,12 +8,97 @@ from tsfresh.convenience.bindings import (  # type: ignore
     spark_feature_extraction_on_chunk,
 )
 from tsfresh.feature_extraction import ComprehensiveFCParameters  # type: ignore
+from tabulate import tabulate
+import yaml
 
 from ts_train.common.utils import (
     is_column_present,
     is_column_timestamp,
     is_column_numerical,
 )
+
+
+class FeatureCatalog:
+    with open("../../data/features.yml", "r") as file:
+        data = yaml.safe_load(file)
+
+    @classmethod
+    def _parse_dict(cls, data, key):
+        if key in data:
+            return data[key]
+        else:
+            return ""
+
+    @classmethod
+    def _parse_list(cls, data):
+        return [item for item in data if item not in ["", " ", None]]
+
+    @classmethod
+    def _print_table(cls, data):
+        print(
+            tabulate(
+                data, headers=data.keys(), tablefmt="rounded_grid", maxcolwidths=40
+            )
+        )
+
+    @classmethod
+    def _format_parameters(cls, data):
+        if "parameters" in data:
+            formatted_parameters = []
+            for parameter in data["parameters"]:
+                name = cls._parse_dict(parameter, "name")
+                description = cls._parse_dict(parameter, "description")
+                formatted_parameters.append(f"{name}: {description}")
+
+            return "\n".join(formatted_parameters)
+        else:
+            return ""
+
+    @classmethod
+    def show_tags(cls) -> None:
+        tags = {"Name": [], "Description": []}
+        for tag in cls.data["tags"]:
+            tags["Name"].append(cls._parse_dict(tag, "name"))
+            tags["Description"].append(cls._parse_dict(tag, "description"))
+
+        cls._print_table(tags)
+
+    @classmethod
+    def show_features(cls, tag_name: Optional[str] = None) -> None:
+        features = {
+            "Name": [],
+            "Tags": [],
+            "Description": [],
+            "Details": [],
+            "When": [],
+            "Parameters": [],
+        }
+        for feature in cls.data["features"]:
+            tags = cls._parse_list(feature["tags"])
+            if tag_name is None or tag_name in tags:
+                features["Name"].append(cls._parse_dict(feature, "name"))
+                features["Tags"].append("\n".join(tags))
+                features["Description"].append(cls._parse_dict(feature, "description"))
+                features["Details"].append(cls._parse_dict(feature, "details"))
+                features["When"].append(cls._parse_dict(feature, "when"))
+                features["Parameters"].append(cls._format_parameters(feature))
+
+        cls._print_table(features)
+
+    @classmethod
+    def show_feature(cls, feature_name: str) -> None:
+        table = []
+        for feature in cls.data["features"]:
+            name = cls._parse_dict(feature, "name")
+            if name.startswith(feature_name):
+                table.append(["Name", name])
+                table.append(["Tags", "\n".join(cls._parse_list(feature["tags"]))])
+                table.append(["Description", cls._parse_dict(feature, "description")])
+                table.append(["Details", cls._parse_dict(feature, "details")])
+                table.append(["When", cls._parse_dict(feature, "when")])
+                table.append(["Parameters", cls._format_parameters(feature)])
+
+        print(tabulate(table, tablefmt="plain"))
 
 
 class FeatureGenerating(BaseModel):
@@ -321,3 +406,12 @@ class FeatureGenerating(BaseModel):
         df = self._preprocess(df)
         df = self._process(spark, df)
         return self._postprocess(df)
+
+    @staticmethod
+    def catalog(tag: Optional[str] = None, feature: Optional[str] = None):
+        if tag is None and feature is None:
+            FeatureCatalog.show_tags()
+        elif tag is None and feature is not None:
+            FeatureCatalog.show_feature(feature_name=feature)
+        else:
+            FeatureCatalog.show_features(tag_name=tag)

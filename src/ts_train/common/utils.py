@@ -248,3 +248,51 @@ def check_cols_in_dataframe(
         raise ValueError(
             f"{cols_name_variable_name} contains some column not present in DataFrame"
         )
+
+
+def sample_df(df: DataFrame, count: int) -> DataFrame:
+    """Samples in input DataFrame keeping only count number of samples.
+
+    Args:
+        df (DataFrame): DataFrame to be sampled.
+        count (int): Number of sample to be kept.
+
+    Returns:
+        DataFrame: containing count number of samples.
+    """
+    size = df.count()
+    count = int(count)
+    margin = 1.1
+
+    if count >= size:
+        return df
+
+    while True:
+        ratio = count / size * margin
+        sampled_df = df.sample(fraction=ratio).limit(count)
+        if sampled_df.count() == count:
+            return sampled_df
+        else:
+            margin += 0.1
+
+
+def sample_time_series_df(
+    df: DataFrame, identifier_col_name: str, count: int
+) -> DataFrame:
+    """Samples the input DataFrame keeping only count number of time series identified
+    by identifier_col_name column.
+
+    The number of transactions is not predictable on the basis of the number of time
+    series specified by the count parameter.
+
+    Args:
+        df (DataFrame): original DataFrame to be sampled.
+        identifier_col_name (str): Column name to be used to identify a time series.
+        count (int): Number of time series to be kept.
+
+    Returns:
+        DataFrame: containing only count time series
+    """
+    identifiers_df = sample_df(df.select(identifier_col_name).distinct(), count=count)
+
+    return df.join(identifiers_df, on=identifier_col_name, how="inner")

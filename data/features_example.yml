@@ -1,0 +1,36 @@
+tags:
+  - name: tag1
+    description: Descrizione del tag 1
+  - name: tag2
+    description: Descrizione del tag 2
+  - name: tag3
+    description: Descrizione del tag 3
+
+features:
+  - name: Feature 1
+    tags:
+      - tag1
+      - tag2
+    description: Descrizione della Feature 1
+    details: Dettagli della Feature 1
+  - name: Feature 2
+    tags:
+      - tag2
+      - tag3
+    description: Descrizione della Feature 2
+    parameters:
+      - name: param1
+        description: Descrizione del parametro 1 per Feature 2
+      - name: param2
+        description: Descrizione del parametro 2 per Feature 2
+  - name: Feature 3
+    tags:
+      - tag1
+      - tag3
+    description: Descrizione della Feature 3
+    details: Dettagli della Feature 3
+    parameters:
+      - name: param1
+        description: Descrizione del parametro 1 per Feature 3
+      - name: param2
+        description: Descrizione del parametro 2 per Feature 3
