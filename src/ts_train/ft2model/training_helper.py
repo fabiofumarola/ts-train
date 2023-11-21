@@ -300,6 +300,7 @@ class TrainingHelper(BaseModel):
                 type=self.type,
                 label_col_name=self.label_col_name,
                 objective=objective,
+                num_workers=self.num_workers,
             )
             best_params, self._transformer = tune_parameters_cv(
                 df=df,
