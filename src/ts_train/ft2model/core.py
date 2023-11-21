@@ -468,6 +468,8 @@ def get_estimator(
     if params is None:
         params = {}
 
+    params["num_workers"] = num_workers
+
     if type == "classification":
         return SparkXGBClassifier(
             features_col=features_col_name,
