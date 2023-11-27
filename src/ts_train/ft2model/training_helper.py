@@ -419,7 +419,9 @@ class TrainingHelper(BaseModel):
         else:
             raise Exception("You have to fit or tune a model first.")
 
-    def get_feature_importance(self, spark: SparkSession) -> DataFrame:
+    def get_feature_importance(
+        self, spark: SparkSession, importance_type: str = "weight"
+    ) -> DataFrame:
         """Calculates the importance for the target of each feature used by the model.
 
         When a categorical variable has been used the output features are the as many
@@ -429,6 +431,15 @@ class TrainingHelper(BaseModel):
 
         Args:
             spark (SparkSession): used to create the resulting DataFrame.
+            importance_type (str): Type of calculation used for importance:
+            - weight: the number of times a feature is used to split the data across
+                all trees.
+            - gain: the average gain across all splits the feature is used in.
+            - cover: the average coverage across all splits the feature is used in.
+            - total_gain: the total gain across all splits the feature is used in.
+            - total_cover: the total coverage across all splits the feature is used
+                in.
+            Default to "weight".
 
         Returns:
             DataFrame: A spark DataFrame with two columns: feature and importance where
@@ -439,6 +450,7 @@ class TrainingHelper(BaseModel):
         features_names_and_importances = get_features_importance(
             transformer=self._transformer,  # type: ignore
             encoded_features_cols_name=self._encoded_features_cols_name,  # type: ignore
+            importance_type=importance_type,
         )
 
         return spark.createDataFrame(
