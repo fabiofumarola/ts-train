@@ -454,6 +454,15 @@ def get_estimator(
             the vector_assemble method. Defaults to "features".
         label_col_name (str, optional): Column name for the target/label of the
             dataset. Defaults to "label".
+        objective (str, optional): Metric to be used to optimize the model and train
+            it. It is usable only with regression: reg:squarederror,
+            reg:squaredlogerror, reg:logistic, reg:pseudohubererror,
+            reg:absoluteerror, reg:quantileerror. Others could be found here:
+            https://xgboost.readthedocs.io/en/stable/parameter.html#learning-task-parameters
+            XGBoost for Spark does not allow to modify objective for classification.
+        num_workers (int): How many XGBoost workers to be used to train. Each XGBoost
+            worker corresponds to one spark task. It can be also provided in the params
+            dictionary. This parameter overwrites the params dictionary.
         params (Optional[Params], optional): Params passed to the model/estimator.
             Defaults to None.
 
@@ -476,7 +485,6 @@ def get_estimator(
             label_col=label_col_name,
             enable_sparse_data_optim=True,
             missing=0.0,
-            objective=objective,
             **params,  # type: ignore
         )
     elif type == "regression":
@@ -716,7 +724,7 @@ def tune_parameters(
     params: TunableParams,
     type: str,
     label_col_name: str,
-    objective: str,
+    objective: Optional[str],
     mode: str,
     num_workers: int,
     evaluator: Evaluator,
