@@ -112,14 +112,12 @@ class TrainingHelper(BaseModel):
             params (Params, optional): parameters to be passed to the regressor or the
                 classifier.
             objective (str, optional): Metric to be used to optimize the model and train
-                it. Available options:
-                - Classification: multi:softmax, multi:softprob
-                - Binary classification: binary:logistic, binary:logitraw, binary:hinge
-                - Regression: reg:squarederror, reg:squaredlogerror, reg:logistic,
-                    reg:pseudohubererror, reg:absoluteerror, reg:quantileerror
-                Others could be found here: https://xgboost.readthedocs.io/en/stable/parameter.html#learning-task-parameters
-                Defaults to "multi:softmax" for classification and "reg:squarederror"
-                for regression.
+                it. It is usable only with regression: reg:squarederror,
+                reg:squaredlogerror, reg:logistic, reg:pseudohubererror,
+                reg:absoluteerror, reg:quantileerror. Others could be found here:
+                https://xgboost.readthedocs.io/en/stable/parameter.html#learning-task-parameters
+                XGBoost for Spark does not allow to modify objective for classification.
+                For regression default is reg:squarederror.
 
         Raises:
             ValueError: if params contains list of values instead of a strict value.
@@ -127,10 +125,8 @@ class TrainingHelper(BaseModel):
         Returns:
             Transformer: fitted model.
         """
-        if objective is None:
-            objective = (
-                "multi:softmax" if self.type == "classification" else "reg:squarederror"
-            )
+        if objective is None and self.type == "regression":
+            objective = "reg:squarederror"
 
         df = self._preprocess_dataframe(df)
 
@@ -204,10 +200,8 @@ class TrainingHelper(BaseModel):
             Transformer: fitted model with best performance considering the chosen
                 metric.
         """
-        if objective is None:
-            objective = (
-                "multi:softmax" if self.type == "classification" else "reg:squarederror"
-            )
+        if objective is None and self.type == "regression":
+            objective = "reg:squarederror"
         if metric is None:
             metric = "f1" if self.type == "classification" else "rmse"
         if mode is None:
@@ -286,10 +280,8 @@ class TrainingHelper(BaseModel):
             Transformer: fitted model with best performance considering the chosen
                 metric.
         """
-        if objective is None:
-            objective = (
-                "multi:softmax" if self.type == "classification" else "reg:squarederror"
-            )
+        if objective is None and self.type == "regression":
+            objective = "reg:squarederror"
         if metric is None:
             metric = "f1" if self.type == "classification" else "rmse"
 
