@@ -14,6 +14,8 @@ from pyspark.ml.feature import (
 from xgboost.spark import (  # type: ignore
     SparkXGBClassifierModel,
     SparkXGBRegressorModel,
+    SparkXGBClassifier,
+    SparkXGBRegressor,
 )
 from pydantic import BaseModel, ConfigDict
 from pydantic.types import StrictStr
@@ -449,28 +451,40 @@ class TrainingHelper(BaseModel):
             list(features_names_and_importances.items()), ["feature", "importance"]
         ).orderBy(F.desc("importance"))
 
-    def save(self, path: str) -> None:
+    def save(self, path: str, location: Optional[str] = "databricks") -> None:
+        """Saves the trained model and the encoders (if present) in the provided folder.
+
+        Args:
+            path (str): Folder path where to save. It should be the File API Format. If
+                you don't know which is click on the down arrow besides a folder, click
+                "Copy path" and then "File API Format".
+            location: (str, optional): For now the only location where you can save is
+                DataBricks dbfs. Default databricks.
+        """
+        if location == "databricks":
+            self._save_databricks(path=path)
+        else:
+            raise ValueError("Now only DataBricks saving location is suppoted")
+
+    def _save_databricks(self, path: str) -> None:
         """Saves the trained model and the encoders (if present) in the provided folder.
 
         Args:
             path (str): Folter path where to save.
         """
-        dbfs_path_path = Path(path)
-        dbfs_path_parts = []
-        for part in dbfs_path_path.parts:
-            if part not in ["DBFS", "dbfs", "/", "\\"]:
-                dbfs_path_parts.append(part)
-
-        path_path = Path("/".join(dbfs_path_parts))
+        if path[0] != "/":
+            path = "/" + path
+        pickle_path_str = str(Path(path) / "training_helper.pickle")
+        spark_path_str = str(Path(path)).replace("/dbfs", "dbfs:", 1)
 
         if self._transformer is not None:
-            self._transformer.save(str(path_path / "transformer"))  # type: ignore
+            self._transformer.save(spark_path_str + "/transformer")  # type: ignore
         if self._estimator is not None:
-            self._transformer.save(str(path_path / "estimator"))  # type: ignore
+            self._estimator.save(spark_path_str + "/estimator")  # type: ignore
         if self._string_indexer_model is not None:
-            self._string_indexer_model.save(str(path_path / "string_indexer_model"))
+            self._string_indexer_model.save(spark_path_str + "/string_indexer_model")
         if self._one_hot_encoder_model is not None:
-            self._one_hot_encoder_model.save(str(path_path / "one_hot_encoder_model"))
+            self._one_hot_encoder_model.save(spark_path_str + "/one_hot_encoder_model")
 
         transformer_temp = self._transformer
         estimator_temp = self._estimator
@@ -482,7 +496,7 @@ class TrainingHelper(BaseModel):
         self._string_indexer_model = None
         self._one_hot_encoder_model = None
 
-        with open(dbfs_path_path / "training_helper.pickle", "wb") as f:
+        with open(pickle_path_str, "wb") as f:
             pickle.dump(self, f)
 
         self._transformer = transformer_temp
@@ -491,7 +505,31 @@ class TrainingHelper(BaseModel):
         self._one_hot_encoder_model = one_hot_encoder_model_temp
 
     @staticmethod
-    def load(path: str) -> TrainingHelper:
+    def load(path: str, location: Optional[str] = "databricks") -> TrainingHelper:
+        """Loads the trained model and the encoders (if present) from the provided
+        folder.
+
+        Args:
+            path (str): Folder path where to retrieve the models. It should be the File
+                API Format. If you don't know which is click on the down arrow besides
+                a folder, click "Copy path" and then "File API Format".
+            location: (str, optional): For now the only location where you can save is
+                DataBricks dbfs. Default databricks.
+
+        Raises:
+            FileNotFoundError: If the training_helper.pickle is not found inside the
+                provided folder.
+
+        Returns:
+            TrainingHelper: initialized TrainingHelper object.
+        """
+        if location == "databricks":
+            return TrainingHelper._load_databricks(path=path)
+        else:
+            raise ValueError("Now only DataBricks loading location is suppoted")
+
+    @staticmethod
+    def _load_databricks(path: str) -> TrainingHelper:
         """Loads the trained model and the encoders (if present) from the provided
         folder.
 
@@ -505,35 +543,50 @@ class TrainingHelper(BaseModel):
         Returns:
             TrainingHelper: initialized TrainingHelper object.
         """
-        path_path = Path(path)
+        if path[0] != "/":
+            path = "/" + path
+        pickle_path_str = str(Path(path) / "training_helper.pickle")
+        spark_path_str = str(Path(path)).replace("/dbfs", "dbfs:", 1)
 
-        training_helper_path = path_path / "training_helper.pickle"
-        if training_helper_path.exists():
-            with open(training_helper_path, "rb") as f:
+        pickle_path_path = Path(pickle_path_str)
+        if pickle_path_path.exists():
+            with open(pickle_path_path, "rb") as f:
                 training_helper = pickle.load(f)
         else:
-            raise FileNotFoundError(f"{training_helper_path} not found")
+            raise FileNotFoundError(f"{pickle_path_str} not found")
 
-        transformer_path = path_path / "transformer"
-        if transformer_path.exists():
+        transformer_spark_path_str = spark_path_str + "/transformer"
+        transformer_path_path = Path(path) / "transformer"
+        if transformer_path_path.exists():
             if training_helper.type == "classification":
                 transformer = SparkXGBClassifierModel()  # type: ignore
             else:
                 transformer = SparkXGBRegressorModel()  # type: ignore
-            training_helper._transformer = transformer.load(str(transformer_path))
+            training_helper._transformer = transformer.load(transformer_spark_path_str)
 
-        string_indexer_model_path = path_path / "string_indexer_model"
-        if string_indexer_model_path.exists():
+        estimator_spark_path_str = spark_path_str + "/estimator"
+        estimator_path_path = Path(path) / "estimator"
+        if estimator_path_path.exists():
+            if training_helper.type == "classification":
+                estimator = SparkXGBClassifier()  # type: ignore
+            else:
+                estimator = SparkXGBRegressor()  # type: ignore
+            training_helper._estimator = estimator.load(estimator_spark_path_str)
+
+        string_indexer_model_spark_path_str = spark_path_str + "/string_indexer_model"
+        string_indexer_model_path_path = Path(path) / "string_indexer_model"
+        if string_indexer_model_path_path.exists():
             string_indexer_model: StringIndexerModel = StringIndexerModel()
             training_helper._string_indexer_model = string_indexer_model.load(
-                str(string_indexer_model_path)
+                string_indexer_model_spark_path_str
             )
 
-        one_hot_encoder_model_path = path_path / "one_hot_encoder_model"
-        if one_hot_encoder_model_path.exists():
+        one_hot_encoder_model_spark_path_str = spark_path_str + "/one_hot_encoder_model"
+        one_hot_encoder_model_path_path = Path(path) / "one_hot_encoder_model"
+        if one_hot_encoder_model_path_path.exists():
             one_hot_encoder_model: OneHotEncoderModel = OneHotEncoderModel()
             training_helper._one_hot_encoder_model = one_hot_encoder_model.load(
-                str(one_hot_encoder_model_path)
+                one_hot_encoder_model_spark_path_str
             )
 
         return training_helper
