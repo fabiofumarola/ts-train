@@ -1,7 +1,8 @@
 from typing import *
 import os
 
-from pydantic import BaseModel, StrictStr
+import pandas as pd
+from pydantic import BaseModel, StrictStr  # type: ignore
 from pyspark.sql import SparkSession, DataFrame
 from pyspark.sql.types import DoubleType
 from pyspark.sql import functions as F
@@ -37,12 +38,9 @@ class FeatureCatalog:
         return [item for item in data if item not in ["", " ", None]]
 
     @classmethod
-    def _print_table(cls, data):
-        print(
-            tabulate(
-                data, headers=data.keys(), tablefmt="rounded_grid", maxcolwidths=40
-            )
-        )
+    def _print_table(cls, table):
+        pd.set_option("display.max_colwidth", None)
+        display(pd.DataFrame(table))  # type: ignore
 
     @classmethod
     def _format_parameters(cls, data):
@@ -59,16 +57,16 @@ class FeatureCatalog:
 
     @classmethod
     def show_tags(cls) -> None:
-        tags = {"Name": [], "Description": []}
+        table = {"Name": [], "Description": []}
         for tag in cls.data["tags"]:
-            tags["Name"].append(cls._parse_dict(tag, "name"))
-            tags["Description"].append(cls._parse_dict(tag, "description"))
+            table["Name"].append(cls._parse_dict(tag, "name"))
+            table["Description"].append(cls._parse_dict(tag, "description"))
 
-        cls._print_table(tags)
+        cls._print_table(table)
 
     @classmethod
     def show_features(cls, tag_name: Optional[str] = None) -> None:
-        features = {
+        table = {
             "Name": [],
             "Tags": [],
             "Description": [],
@@ -79,29 +77,36 @@ class FeatureCatalog:
         for feature in cls.data["features"]:
             tags = cls._parse_list(feature["tags"])
             if tag_name is None or tag_name in tags:
-                features["Name"].append(cls._parse_dict(feature, "name"))
-                features["Tags"].append("\n".join(tags))
-                features["Description"].append(cls._parse_dict(feature, "description"))
-                features["Details"].append(cls._parse_dict(feature, "details"))
-                features["When"].append(cls._parse_dict(feature, "when"))
-                features["Parameters"].append(cls._format_parameters(feature))
+                table["Name"].append(cls._parse_dict(feature, "name"))
+                table["Tags"].append("\n".join(tags))
+                table["Description"].append(cls._parse_dict(feature, "description"))
+                table["Details"].append(cls._parse_dict(feature, "details"))
+                table["When"].append(cls._parse_dict(feature, "when"))
+                table["Parameters"].append(cls._format_parameters(feature))
 
-        cls._print_table(features)
+        cls._print_table(table)
 
     @classmethod
     def show_feature(cls, feature_name: str) -> None:
-        table = []
+        table = {
+            "Name": [],
+            "Tags": [],
+            "Description": [],
+            "Details": [],
+            "When": [],
+            "Parameters": [],
+        }
         for feature in cls.data["features"]:
             name = cls._parse_dict(feature, "name")
             if name.startswith(feature_name):
-                table.append(["Name", name])
-                table.append(["Tags", "\n".join(cls._parse_list(feature["tags"]))])
-                table.append(["Description", cls._parse_dict(feature, "description")])
-                table.append(["Details", cls._parse_dict(feature, "details")])
-                table.append(["When", cls._parse_dict(feature, "when")])
-                table.append(["Parameters", cls._format_parameters(feature)])
+                table["Name"].append(name)
+                table["Tags"].append("\n".join(cls._parse_list(feature["tags"])))
+                table["Description"].append(cls._parse_dict(feature, "description"))
+                table["Details"].append(cls._parse_dict(feature, "details"))
+                table["When"].append(cls._parse_dict(feature, "when"))
+                table["Parameters"].append(cls._format_parameters(feature))
 
-        print(tabulate(table, tablefmt="plain"))
+        cls._print_table(table)
 
 
 class FeatureGenerating(BaseModel):

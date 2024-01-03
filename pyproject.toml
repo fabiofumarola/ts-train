@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "ts-train"
-version = "1.3.6"
+version = "1.3.7"
 description = ""
 authors = ["AGI3YDM <luca.sorrentino@agilelab.it>", "EXTA06F <fabio.vaccaro@agilelab.it>"]
 readme = "README.md"
