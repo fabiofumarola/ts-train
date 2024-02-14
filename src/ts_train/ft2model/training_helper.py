@@ -49,9 +49,6 @@ class TrainingHelper(BaseModel):
             DataFrame to be used to fit the model.
         label_col_name (StrictStr): column name of target/label in the DataFrame to be
             used to fit the model for the classification or regression task.
-        params (Params, optional): Parameters for the SparkXGBClassifier or
-            SparkXGBRegressor model. XGBoost documentation here:
-            https://xgboost.readthedocs.io/en/stable/python/python_api.html
         ordered_categ_features_cols_name (list[StrictStr], optional): list of columns
             names which should be a subset of features_cols_name. These are the
             categorical columns with values that should be mainteined an order with.
@@ -112,7 +109,8 @@ class TrainingHelper(BaseModel):
         Args:
             df (DataFrame): DataFrame containing features and target.
             params (Params, optional): parameters to be passed to the regressor or the
-                classifier.
+                classifier. XGBoost documentation here:
+                https://xgboost.readthedocs.io/en/stable/python/python_api.html
             objective (str, optional): Metric to be used to optimize the model and train
                 it. It is usable only with regression: reg:squarederror,
                 reg:squaredlogerror, reg:logistic, reg:pseudohubererror,
@@ -173,14 +171,12 @@ class TrainingHelper(BaseModel):
                 parameters and values as strict values or list of strict values. Values
                 of lists will be tuned.
             objective (str, optional): Metric to be used to optimize the model and train
-                it. Available options:
-                - Classification: multi:softmax, multi:softprob
-                - Binary classification: binary:logistic, binary:logitraw, binary:hinge
-                - Regression: reg:squarederror, reg:squaredlogerror, reg:logistic,
-                    reg:pseudohubererror, reg:absoluteerror, reg:quantileerror
-                Others could be found here: https://xgboost.readthedocs.io/en/stable/parameter.html#learning-task-parameters
-                Defaults to "multi:softmax" for classification and "reg:squarederror"
-                for regression.
+                it. It is usable only with regression: reg:squarederror,
+                reg:squaredlogerror, reg:logistic, reg:pseudohubererror,
+                reg:absoluteerror, reg:quantileerror. Others could be found here:
+                https://xgboost.readthedocs.io/en/stable/parameter.html#learning-task-parameters
+                XGBoost for Spark does not allow to modify objective for classification.
+                For regression default is reg:squarederror.
             metric (str, optional): Metric to be used to evaluate the models trained
                 with different values of the parameters provided. Available options:
                 - Classification: f1, accuracy, weightedPrecision, weightedRecall,
