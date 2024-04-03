@@ -371,7 +371,9 @@ class TrainingHelper(BaseModel):
             evaluator=get_evaluator(metric=metric, label_col_name=self.label_col_name),
         )
 
-    def get_parameters(self, with_doc: bool = False, with_none=True) -> Union[
+    def get_parameters(
+        self, with_doc: bool = False, with_none=True
+    ) -> Union[
         dict[
             str, Union[Union[str, float, int, bool], list[Union[str, float, int, bool]]]
         ],

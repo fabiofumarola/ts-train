@@ -346,7 +346,11 @@ class FeatureGenerating(BaseModel):
         # and removes " from strings.
         new_cols = [
             F.col(f"`{c}`").alias(
-                c.replace(".", "dot").replace(",", "_").replace('"', "")
+                c.replace(".", "dot")
+                .replace(",", "_")
+                .replace('"', "")
+                .replace("(", "[")
+                .replace(")", "]")
             )
             for c in features_df.columns
         ]
