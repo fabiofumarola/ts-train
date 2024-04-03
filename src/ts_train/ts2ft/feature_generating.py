@@ -351,6 +351,7 @@ class FeatureGenerating(BaseModel):
                 .replace('"', "")
                 .replace("(", "[")
                 .replace(")", "]")
+                .replace(" ", "")
             )
             for c in features_df.columns
         ]
