@@ -1,0 +1,48 @@
+TimeBucketing(
+    time_column_name: str,
+    time_bucket_size: int,
+    time_bucket_granularity: str,
+    time_bucket_col_name: str,
+)->df_with_time_buckets_cols: DataFrame
+
+Aggregation = Dict[str, str]
+FilterVariable = Dict[str, Union[str, List[str]]]
+Filter = Dict[str, Union[str, FilterVariable]]
+
+Aggregation(
+    time_bucket_col_name: str,
+    identifier_cols_name: str,
+    aggregations: List[Aggregation],
+    filters: List[Filter],
+)->df_with_new_colums: DataFrame
+
+Filling(
+    time_bucket_col_name: str,
+    identifier_cols_name: List[str],
+    time_bucket_size: int,
+    time_bucket_granularity: str,
+)-> df_uniformed_time_series
+
+
+# UTILIZZO
+main
+    leggo configs
+    istanzio gli step
+    genero la pipeline passandogli la lista di steps
+    eseguo pipeline
+
+# Di fixare prima di iniziare lo sviluppo
+- rendere tutti i moduli della pipeline BaseModel per avere gratis la validazione degli input
+- mettere le funzioni di aggregazioen come lista
+- fare una prova con filter messi separati e filter messi dentro aggregations, valutare i due modi e poi capiamo
+- implementare sia l' and che l' or dei filtri di variabili categoriche
+- il filling interno si può fare a 0,
+- il filling esterno per allineare le ts va fatto con un token apposto che permetta al modello di discriminare tra Cliente che NON SPENDE e NON ANCORA CLIENTE (forse dopo TSFRESH, visto che sto token può dare fastidio a tsfreh mentre a tsfreh non dovrebbe importare se le ts sono sfasate in quanto ragiona ts per ts e non a batch)
+
+
+Proposte di evolutive:
+- la parte di features generation (tsfresh) verrà integrato come step aggiuntivo della pipeline
+- verrà aggiunto un metodo per creare la pipeline direttamente dalle config (from yaml, from excel)
+- aggiungere documentazione con mkdocs
+
+

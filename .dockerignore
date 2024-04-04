@@ -1,0 +1,4 @@
+notebooks
+.vscode
+.pytest_cache
+.pre-commit-config.yaml

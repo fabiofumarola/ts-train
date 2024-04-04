@@ -1,0 +1,6 @@
+@Library('jenkins-lib-utility')
+@Library('jks-pipeline-release')
+def envTarget = "RELEASE"
+// Replace <GIT_URL_REPO> the suffix of repo url (with .git) of your repository 
+def APP_GIT_URL = "https://gitlab.alm.poste.it/AILAB/ts-train.git"
+releasePythonLibrary(APP_GIT_URL, envTarget)

@@ -1,0 +1,43 @@
+Cose da decidere:
+
+- questa parte la aggiungiamo allo stesso wheel o lo facciamo separato?
+- partiamo da catboost e poi aggiungiamo gli altri modelli
+- catboost su spark o su pandas
+- quale è il valore aggiunto? libreria stateless con tutti gli steps.
+
+## REALIZZAZIONE DEMO
+
+- Totale transazioni: 5.741.242.139 -> 5 Miliardi
+- Totale utenti totali: -> 31.547.282 -> 31 milioni
+- Totale stipendiati = 2.531.068 milioni
+- Totale clienti non stipendiati = 29.023.386 milioni
+- Ratio: count_0 / count_1 = 0.087
+
+
+# SUBSAMPLE
+- totale transazioni 10.150.687 milioni
+
+NB: per un mio errore gli stipendiati hanno TARGET = 0 e i non stipendiati = 1
+
+- Piano per la demo:
+-   addestra
+
+- le transazioni presenti in cust_know.ck_trans_cat sono troppe. (ore solo per caricare, figurarsi poi fare i join). O ingrandiamo il cluster o riduciamo i dati
+
+- di UTENTI target positivi ne abbiamo ???.
+
+- Proposta: calcoliamo il ratio utenti totali/utenti positivi e facciamo una downsampling mantenendo lo stesso ratio ma su ordini di grandezza più bassi
+
+- 1 grande computazione da più giorni per selezionare le transazioni su cui vogliamo lavorare (capiamo quali clienti bic andare a pescare)
+- 1 grande computaizone per la feature generation
+- 1 grande computazione per feature selection
+
+
+
+
+# Profiling
+timebucketing su tutto: 3 minuti
+somma_entrate_df + salvataggio parquet: 2.20 hours
+somma_uscite_df + salvataggio parquet:2.63 hours
+cont_entrate_df + salvataggio parquet: 1.94 hours
+cont_uscite_df + salvataggio parquet: 2.56 hours
